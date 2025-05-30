@@ -143,6 +143,9 @@ function HomeComponent() {
 							<Button
 								variant="ghost"
 								size="sm"
+								onClick={() =>
+									window.open("https://github.com/sworddotso/sword", "_blank")
+								}
 								className="h-auto p-0 text-zinc-600 hover:text-zinc-400"
 							>
 								<Github className="mr-2 h-4 w-4" />
