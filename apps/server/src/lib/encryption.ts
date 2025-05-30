@@ -82,23 +82,3 @@ export class MessageEncryption {
 		return MessageEncryption.decrypt(encryptedData, conversationKey);
 	}
 }
-
-// For demonstration purposes - in production, you'd use a more secure key management system
-// biome-ignore lint/complexity/noStaticOnlyClass: Key management utility class
-export class ConversationKeyManager {
-	private static keys = new Map<string, string>();
-
-	public static setKey(conversationId: string, key: string): void {
-		ConversationKeyManager.keys.set(conversationId, key);
-	}
-
-	public static getKey(conversationId: string): string | undefined {
-		return ConversationKeyManager.keys.get(conversationId);
-	}
-
-	public static generateAndStoreKey(conversationId: string): string {
-		const key = MessageEncryption.generateConversationKey();
-		ConversationKeyManager.setKey(conversationId, key);
-		return key;
-	}
-}
