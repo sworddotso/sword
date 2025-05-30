@@ -222,37 +222,44 @@ export const appRouter = router({
 				});
 
 				// Encrypt message for each participant using E2EE
-				for (const participant of participantsWithKeys) {
-					try {
-						const encryptedData = E2EECrypto.encryptForRecipient(
-							sanitizedContent,
-							participant.publicKey as string,
-							participant.userId,
-						);
+				const encryptionPromises = participantsWithKeys.map(
+					async (participant) => {
+						try {
+							const encryptedData = E2EECrypto.encryptForRecipient(
+								sanitizedContent,
+								participant.publicKey as string,
+								participant.userId,
+							);
 
-						// Store encrypted message for this recipient
-						await tx.insert(messageRecipient).values({
+							return { participant, encryptedData };
+						} catch (error) {
+							console.error(
+								`Failed to encrypt message for user ${participant.userId}:`,
+								error,
+							);
+							throw new Error("Failed to encrypt message for all recipients");
+						}
+					},
+				);
+
+				const encryptedResults = await Promise.all(encryptionPromises);
+
+				// Store all encrypted messages and delivery records
+				for (const { participant, encryptedData } of encryptedResults) {
+					await tx.insert(messageRecipient).values({
+						id: nanoid(),
+						messageId,
+						recipientId: participant.userId,
+						encryptedContent: encryptedData.encryptedContent,
+						encryptedKey: encryptedData.encryptedKey,
+					});
+
+					if (participant.userId !== ctx.session.user.id) {
+						await tx.insert(messageDelivery).values({
 							id: nanoid(),
 							messageId,
-							recipientId: participant.userId,
-							encryptedContent: encryptedData.encryptedContent,
-							encryptedKey: encryptedData.encryptedKey,
+							userId: participant.userId,
 						});
-
-						// Create delivery record for participants except sender
-						if (participant.userId !== ctx.session.user.id) {
-							await tx.insert(messageDelivery).values({
-								id: nanoid(),
-								messageId,
-								userId: participant.userId,
-							});
-						}
-					} catch (error) {
-						console.error(
-							`Failed to encrypt message for user ${participant.userId}:`,
-							error,
-						);
-						throw new Error("Failed to encrypt message for all recipients");
 					}
 				}
 			});
