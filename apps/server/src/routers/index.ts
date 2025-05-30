@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import {
@@ -319,6 +319,27 @@ export const appRouter = router({
 				throw new Error("Not authorized to view messages in this conversation");
 			}
 
+			// Build where conditions for pagination
+			const whereConditions = [
+				eq(message.conversationId, input.conversationId),
+			];
+
+			// Add pagination condition if beforeMessageId is provided
+			if (input.beforeMessageId) {
+				// Get the timestamp of the beforeMessageId message for proper pagination
+				const beforeMessage = await db
+					.select({ createdAt: message.createdAt })
+					.from(message)
+					.where(eq(message.id, input.beforeMessageId))
+					.limit(1);
+
+				if (beforeMessage.length > 0) {
+					whereConditions.push(
+						lt(message.createdAt, beforeMessage[0].createdAt),
+					);
+				}
+			}
+
 			// Get messages with encrypted content for the requesting user
 			const messages = await db
 				.select({
@@ -349,7 +370,7 @@ export const appRouter = router({
 						eq(messageRecipient.recipientId, ctx.session.user.id),
 					),
 				)
-				.where(eq(message.conversationId, input.conversationId))
+				.where(and(...whereConditions))
 				.orderBy(desc(message.createdAt))
 				.limit(input.limit);
 
@@ -529,17 +550,6 @@ export const appRouter = router({
 				publicKey: u.publicKey,
 			}));
 		}),
-
-	generateKeyPair: protectedProcedure.mutation(() => {
-		// Generate a new key pair - client handles private key storage for true E2EE
-		const keyPair = E2EECrypto.generateKeyPair();
-
-		// Return both keys to client (client must store private key securely)
-		return {
-			publicKey: keyPair.publicKey,
-			privateKey: keyPair.privateKey,
-		};
-	}),
 
 	getUsersForConversation: protectedProcedure
 		.input(
