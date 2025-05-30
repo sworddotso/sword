@@ -491,17 +491,18 @@ export const appRouter = router({
 			}),
 		)
 		.query(async ({ input }) => {
+			// Short-circuit: if array empty, return empty array
+			if (input.userIds.length === 0) {
+				return [];
+			}
+
 			const users = await db
 				.select({
 					id: user.id,
 					publicKey: user.publicKey,
 				})
 				.from(user)
-				.where(
-					input.userIds.length > 0
-						? or(...input.userIds.map((id) => eq(user.id, id)))
-						: eq(user.id, ""),
-				);
+				.where(or(...input.userIds.map((id) => eq(user.id, id))));
 
 			return users.map((u) => ({
 				userId: u.id,
