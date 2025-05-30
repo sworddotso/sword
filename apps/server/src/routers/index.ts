@@ -523,16 +523,62 @@ export const appRouter = router({
 			}));
 		}),
 
-	generateKeyPair: protectedProcedure.mutation(() => {
-		// Generate a new key pair on the server for the client
+	generateKeyPair: protectedProcedure.mutation(async ({ ctx }) => {
+		// Generate a new key pair on the server
 		const keyPair = E2EECrypto.generateKeyPair();
 
-		// Return both keys to client (client should store private key securely)
+		// Store both keys on the server - private key stays server-side for security
+		await db
+			.update(user)
+			.set({
+				publicKey: keyPair.publicKey,
+				serverPrivateKey: keyPair.privateKey,
+				updatedAt: new Date(),
+			})
+			.where(eq(user.id, ctx.session.user.id));
+
+		// Only return public key to client
 		return {
 			publicKey: keyPair.publicKey,
-			privateKey: keyPair.privateKey,
 		};
 	}),
+
+	decryptMessage: protectedProcedure
+		.input(
+			z.object({
+				encryptedContent: z.string(),
+				encryptedKey: z.string(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			// Get user's server-stored private key
+			const userRecord = await db
+				.select({ serverPrivateKey: user.serverPrivateKey })
+				.from(user)
+				.where(eq(user.id, ctx.session.user.id))
+				.limit(1);
+
+			if (userRecord.length === 0 || !userRecord[0].serverPrivateKey) {
+				throw new Error("User private key not found on server");
+			}
+
+			try {
+				// Decrypt the message using server-stored private key
+				const decryptedContent = E2EECrypto.decryptForRecipient(
+					{
+						recipientId: ctx.session.user.id,
+						encryptedContent: input.encryptedContent,
+						encryptedKey: input.encryptedKey,
+					},
+					userRecord[0].serverPrivateKey,
+				);
+
+				return { content: decryptedContent };
+			} catch (error) {
+				console.error("Message decryption failed:", error);
+				throw new Error("Failed to decrypt message");
+			}
+		}),
 
 	getUsersForConversation: protectedProcedure
 		.input(
