@@ -172,6 +172,7 @@ export default function ServerSidebar({
 				<div className="w-full p-3">
 					<div className="relative">
 						<button
+							type="button"
 							onClick={() => setIsProfilePopupOpen(true)}
 							className={cn(
 								"group relative shadow-lg transition-all duration-200",
