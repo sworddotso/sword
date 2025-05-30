@@ -11,6 +11,7 @@ https://discord.gg/sbCrBdv3py
 ## Features
 
 ### Core Features
+
 - **End-to-end Encryption** - Your conversations stay private
 - **Open Source** - Transparent, auditable codebase
 - **Community Owned** - Built by and for the community
@@ -18,6 +19,7 @@ https://discord.gg/sbCrBdv3py
 - **Self-hostable** - Deploy your own instance
 
 ### Technical Stack
+
 - **TypeScript** - For type safety and improved developer experience
 - **TanStack Router** - File-based routing with full type safety
 - **TailwindCSS** - Utility-first CSS for rapid UI development

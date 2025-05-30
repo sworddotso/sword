@@ -1,0 +1,1 @@
+ALTER TABLE "user" DROP COLUMN "server_private_key";

@@ -1,4 +1,6 @@
 import { authClient } from "@/lib/auth-client";
+import { generateAndStoreKeyPair } from "@/lib/key-manager";
+import { trpcClient } from "@/utils/trpc";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -32,11 +34,29 @@ export default function SignUpForm({
 					name: value.name,
 				},
 				{
-					onSuccess: () => {
-						navigate({
-							to: "/dashboard",
-						});
-						toast.success("Sign up successful");
+					onSuccess: async (session) => {
+						try {
+							const userId = session.user.id;
+
+							toast.info("Generating encryption keys...");
+							const publicKeyPem = await generateAndStoreKeyPair(userId);
+
+							toast.info("Setting up secure messaging...");
+							await trpcClient.setPublicKey.mutate({ publicKey: publicKeyPem });
+
+							navigate({
+								to: "/dashboard",
+							});
+							toast.success("Account created with end-to-end encryption!");
+						} catch (error) {
+							console.error("Failed to set up E2EE:", error);
+							toast.error(
+								"Account created but encryption setup failed. Please try signing in again.",
+							);
+							navigate({
+								to: "/dashboard",
+							});
+						}
 					},
 					onError: (error) => {
 						toast.error(error.error.message);

@@ -5,3 +5,4 @@ export const db = drizzle(process.env.DATABASE_URL || "");
 // Export schemas
 export * from "./schema/auth";
 export * from "./schema/waitlist";
+export * from "./schema/messages";

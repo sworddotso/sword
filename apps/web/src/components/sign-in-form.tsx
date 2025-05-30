@@ -1,4 +1,5 @@
 import { authClient } from "@/lib/auth-client";
+import { loadPrivateKey } from "@/lib/key-manager";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -30,11 +31,33 @@ export default function SignInForm({
 					password: value.password,
 				},
 				{
-					onSuccess: () => {
-						navigate({
-							to: "/dashboard",
-						});
-						toast.success("Sign in successful");
+					onSuccess: async (session) => {
+						try {
+							const userId = session.user.id;
+							const privateKey = await loadPrivateKey(userId);
+
+							if (!privateKey) {
+								toast.warning(
+									"No encryption keys found. Secure messaging is not available until you set up encryption again.",
+								);
+							} else {
+								toast.success(
+									"Sign in successful with secure messaging enabled!",
+								);
+							}
+
+							navigate({
+								to: "/dashboard",
+							});
+						} catch (error) {
+							console.error("Failed to load encryption keys:", error);
+							toast.warning(
+								"Signed in but could not load encryption keys. Secure messaging may not work.",
+							);
+							navigate({
+								to: "/dashboard",
+							});
+						}
 					},
 					onError: (error) => {
 						toast.error(error.error.message);
