@@ -4,6 +4,10 @@
 
 Sword is a modern, privacy-first chat application built with TypeScript that prioritizes end-to-end encryption, open source transparency, and community ownership. This project serves as an alternative to Discord with a focus on user privacy and data sovereignty.
 
+## Discord server
+
+https://discord.gg/sbCrBdv3py
+
 ## Features
 
 ### Core Features
