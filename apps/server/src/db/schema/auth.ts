@@ -7,7 +7,6 @@ export const user = pgTable("user", {
 	emailVerified: boolean("email_verified").notNull(),
 	image: text("image"),
 	publicKey: text("public_key"),
-	serverPrivateKey: text("server_private_key"),
 	createdAt: timestamp("created_at").notNull(),
 	updatedAt: timestamp("updated_at").notNull(),
 });
