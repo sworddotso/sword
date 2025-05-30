@@ -5,6 +5,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { auth } from "./lib/auth";
 import { createContext } from "./lib/context";
+import { initializeWebSocket } from "./lib/websocket";
 import { appRouter } from "./routers/index";
 
 const app = new Hono();
@@ -45,5 +46,8 @@ serve(
 	},
 	(info) => {
 		console.log(`Server is running on http://localhost:${info.port}`);
+
+		// Initialize WebSocket server on port 3001
+		initializeWebSocket(3001);
 	},
 );

@@ -1,7 +1,19 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { z } from "zod";
-import { db, waitlist } from "../db";
+import {
+	conversation,
+	conversationParticipant,
+	db,
+	message,
+	messageDelivery,
+	messageRecipient,
+	user,
+	waitlist,
+} from "../db";
+import { E2EECrypto } from "../lib/e2ee";
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
+import { getWebSocketManager } from "../lib/websocket";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -71,6 +83,470 @@ export const appRouter = router({
 					message: "Unable to join waitlist. Please try again later.",
 				};
 			}
+		}),
+
+	// Message endpoints
+	createConversation: protectedProcedure
+		.input(
+			z.object({
+				type: z.enum(["direct", "group"]).default("direct"),
+				name: z.string().optional(),
+				description: z.string().optional(),
+				participantUserIds: z.array(z.string()).min(1),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const conversationId = nanoid();
+			const now = new Date();
+
+			// Create conversation
+			await db.insert(conversation).values({
+				id: conversationId,
+				type: input.type,
+				name: input.name,
+				description: input.description,
+				isEncrypted: true,
+				createdAt: now,
+				updatedAt: now,
+				createdByUserId: ctx.session.user.id,
+			});
+
+			// Add creator as participant
+			await db.insert(conversationParticipant).values({
+				id: nanoid(),
+				conversationId,
+				userId: ctx.session.user.id,
+				joinedAt: now,
+				isAdmin: true,
+			});
+
+			// Add other participants
+			for (const userId of input.participantUserIds) {
+				if (userId !== ctx.session.user.id) {
+					await db.insert(conversationParticipant).values({
+						id: nanoid(),
+						conversationId,
+						userId,
+						joinedAt: now,
+						isAdmin: false,
+					});
+				}
+			}
+
+			return { conversationId };
+		}),
+
+	sendMessage: protectedProcedure
+		.input(
+			z.object({
+				conversationId: z.string(),
+				content: z.string().min(1),
+				type: z.enum(["text", "image", "file", "system"]).default("text"),
+				replyToMessageId: z.string().optional(),
+				metadata: z.string().optional(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			// Verify user is participant in conversation
+			const participation = await db
+				.select()
+				.from(conversationParticipant)
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, input.conversationId),
+						eq(conversationParticipant.userId, ctx.session.user.id),
+						isNull(conversationParticipant.leftAt),
+					),
+				)
+				.limit(1);
+
+			if (participation.length === 0) {
+				throw new Error("Not authorized to send messages in this conversation");
+			}
+
+			const messageId = nanoid();
+			const now = new Date();
+
+			// Get all participants with their public keys
+			const participants = await db
+				.select({
+					userId: conversationParticipant.userId,
+					publicKey: user.publicKey,
+				})
+				.from(conversationParticipant)
+				.innerJoin(user, eq(conversationParticipant.userId, user.id))
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, input.conversationId),
+						isNull(conversationParticipant.leftAt),
+					),
+				);
+
+			// Validate that all participants have public keys
+			const participantsWithKeys = participants.filter((p) => p.publicKey);
+			if (participantsWithKeys.length !== participants.length) {
+				throw new Error(
+					"All participants must have public keys for E2EE messaging",
+				);
+			}
+
+			// Insert message (without content - content is stored encrypted per recipient)
+			await db.insert(message).values({
+				id: messageId,
+				conversationId: input.conversationId,
+				senderId: ctx.session.user.id,
+				type: input.type,
+				replyToMessageId: input.replyToMessageId,
+				metadata: input.metadata,
+				isEdited: false,
+				isDeleted: false,
+				createdAt: now,
+				updatedAt: now,
+			});
+
+			// Encrypt message for each participant using E2EE
+			for (const participant of participantsWithKeys) {
+				try {
+					const encryptedData = E2EECrypto.encryptForRecipient(
+						input.content,
+						participant.publicKey as string,
+					);
+
+					// Store encrypted message for this recipient
+					await db.insert(messageRecipient).values({
+						id: nanoid(),
+						messageId,
+						recipientId: participant.userId,
+						encryptedContent: encryptedData.encryptedContent,
+						encryptedKey: encryptedData.encryptedKey,
+					});
+
+					// Create delivery record for participants except sender
+					if (participant.userId !== ctx.session.user.id) {
+						await db.insert(messageDelivery).values({
+							id: nanoid(),
+							messageId,
+							userId: participant.userId,
+						});
+					}
+				} catch (error) {
+					console.error(
+						`Failed to encrypt message for user ${participant.userId}:`,
+						error,
+					);
+					throw new Error("Failed to encrypt message for all recipients");
+				}
+			}
+
+			// Broadcast message notification via WebSocket (without content for E2EE)
+			const wsManager = getWebSocketManager();
+			if (wsManager) {
+				const messageNotification = {
+					id: messageId,
+					conversationId: input.conversationId,
+					type: input.type,
+					replyToMessageId: input.replyToMessageId,
+					metadata: input.metadata,
+					isEdited: false,
+					isDeleted: false,
+					createdAt: now,
+					updatedAt: now,
+					sender: {
+						id: ctx.session.user.id,
+						name: ctx.session.user.name,
+						email: ctx.session.user.email,
+						image: ctx.session.user.image,
+					},
+				};
+				wsManager.broadcastNewMessage(
+					input.conversationId,
+					messageNotification,
+				);
+			}
+
+			return { messageId };
+		}),
+
+	getMessages: protectedProcedure
+		.input(
+			z.object({
+				conversationId: z.string(),
+				limit: z.number().min(1).max(100).default(50),
+				beforeMessageId: z.string().optional(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			// Verify user is participant in conversation
+			const participation = await db
+				.select()
+				.from(conversationParticipant)
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, input.conversationId),
+						eq(conversationParticipant.userId, ctx.session.user.id),
+						isNull(conversationParticipant.leftAt),
+					),
+				)
+				.limit(1);
+
+			if (participation.length === 0) {
+				throw new Error("Not authorized to view messages in this conversation");
+			}
+
+			// Get messages with encrypted content for the requesting user
+			const messages = await db
+				.select({
+					id: message.id,
+					type: message.type,
+					isEdited: message.isEdited,
+					isDeleted: message.isDeleted,
+					createdAt: message.createdAt,
+					updatedAt: message.updatedAt,
+					replyToMessageId: message.replyToMessageId,
+					metadata: message.metadata,
+					sender: {
+						id: user.id,
+						name: user.name,
+						email: user.email,
+						image: user.image,
+					},
+					// Get encrypted content for the requesting user
+					encryptedContent: messageRecipient.encryptedContent,
+					encryptedKey: messageRecipient.encryptedKey,
+				})
+				.from(message)
+				.innerJoin(user, eq(message.senderId, user.id))
+				.leftJoin(
+					messageRecipient,
+					and(
+						eq(messageRecipient.messageId, message.id),
+						eq(messageRecipient.recipientId, ctx.session.user.id),
+					),
+				)
+				.where(eq(message.conversationId, input.conversationId))
+				.orderBy(desc(message.createdAt))
+				.limit(input.limit);
+
+			// Return messages with encrypted content for client-side decryption
+			return messages.map((msg) => ({
+				id: msg.id,
+				type: msg.type,
+				isEdited: msg.isEdited,
+				isDeleted: msg.isDeleted,
+				createdAt: msg.createdAt,
+				updatedAt: msg.updatedAt,
+				replyToMessageId: msg.replyToMessageId,
+				metadata: msg.metadata,
+				sender: msg.sender,
+				// Include encrypted data for client-side decryption
+				encrypted:
+					msg.encryptedContent && msg.encryptedKey
+						? {
+								content: msg.encryptedContent,
+								key: msg.encryptedKey,
+							}
+						: null,
+			}));
+		}),
+
+	getConversations: protectedProcedure.query(async ({ ctx }) => {
+		const conversations = await db
+			.select({
+				id: conversation.id,
+				type: conversation.type,
+				name: conversation.name,
+				description: conversation.description,
+				createdAt: conversation.createdAt,
+				updatedAt: conversation.updatedAt,
+			})
+			.from(conversation)
+			.innerJoin(
+				conversationParticipant,
+				eq(conversation.id, conversationParticipant.conversationId),
+			)
+			.where(
+				and(
+					eq(conversationParticipant.userId, ctx.session.user.id),
+					isNull(conversationParticipant.leftAt),
+				),
+			)
+			.orderBy(desc(conversation.updatedAt));
+
+		return conversations;
+	}),
+
+	markMessageAsRead: protectedProcedure
+		.input(
+			z.object({
+				messageId: z.string(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			const now = new Date();
+
+			// First get the message to find the conversation
+			const messageRecord = await db
+				.select({ conversationId: message.conversationId })
+				.from(message)
+				.where(eq(message.id, input.messageId))
+				.limit(1);
+
+			if (messageRecord.length === 0) {
+				throw new Error("Message not found");
+			}
+
+			await db
+				.update(messageDelivery)
+				.set({
+					readAt: now,
+					deliveredAt: messageDelivery.deliveredAt ?? now,
+				})
+				.where(
+					and(
+						eq(messageDelivery.messageId, input.messageId),
+						eq(messageDelivery.userId, ctx.session.user.id),
+					),
+				);
+
+			// Broadcast read status via WebSocket
+			const wsManager = getWebSocketManager();
+			if (wsManager) {
+				wsManager.broadcastMessageRead(
+					messageRecord[0].conversationId,
+					input.messageId,
+					ctx.session.user.id,
+				);
+			}
+
+			return { success: true };
+		}),
+
+	// E2EE Key Management endpoints
+	setPublicKey: protectedProcedure
+		.input(
+			z.object({
+				publicKey: z.string(),
+			}),
+		)
+		.mutation(async ({ input, ctx }) => {
+			// Validate the public key format
+			if (!E2EECrypto.isValidPublicKey(input.publicKey)) {
+				throw new Error("Invalid public key format");
+			}
+
+			await db
+				.update(user)
+				.set({
+					publicKey: input.publicKey,
+					updatedAt: new Date(),
+				})
+				.where(eq(user.id, ctx.session.user.id));
+
+			return { success: true };
+		}),
+
+	getPublicKey: protectedProcedure
+		.input(
+			z.object({
+				userId: z.string(),
+			}),
+		)
+		.query(async ({ input }) => {
+			const userRecord = await db
+				.select({ publicKey: user.publicKey })
+				.from(user)
+				.where(eq(user.id, input.userId))
+				.limit(1);
+
+			if (userRecord.length === 0) {
+				throw new Error("User not found");
+			}
+
+			return { publicKey: userRecord[0].publicKey };
+		}),
+
+	getPublicKeys: protectedProcedure
+		.input(
+			z.object({
+				userIds: z.array(z.string()),
+			}),
+		)
+		.query(async ({ input }) => {
+			const users = await db
+				.select({
+					id: user.id,
+					publicKey: user.publicKey,
+				})
+				.from(user)
+				.where(
+					input.userIds.length > 0
+						? or(...input.userIds.map((id) => eq(user.id, id)))
+						: eq(user.id, ""),
+				);
+
+			return users.map((u) => ({
+				userId: u.id,
+				publicKey: u.publicKey,
+			}));
+		}),
+
+	generateKeyPair: protectedProcedure.mutation(() => {
+		// Generate a new key pair on the server for the client
+		const keyPair = E2EECrypto.generateKeyPair();
+
+		// Return both keys to client (client should store private key securely)
+		return {
+			publicKey: keyPair.publicKey,
+			privateKey: keyPair.privateKey,
+		};
+	}),
+
+	getUsersForConversation: protectedProcedure
+		.input(
+			z.object({
+				conversationId: z.string(),
+			}),
+		)
+		.query(async ({ input, ctx }) => {
+			// Verify user is participant in conversation
+			const participation = await db
+				.select()
+				.from(conversationParticipant)
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, input.conversationId),
+						eq(conversationParticipant.userId, ctx.session.user.id),
+						isNull(conversationParticipant.leftAt),
+					),
+				)
+				.limit(1);
+
+			if (participation.length === 0) {
+				throw new Error("Not authorized to view conversation participants");
+			}
+
+			// Get all participants
+			const participants = await db
+				.select({
+					id: user.id,
+					name: user.name,
+					email: user.email,
+					image: user.image,
+					publicKey: user.publicKey,
+				})
+				.from(user)
+				.innerJoin(
+					conversationParticipant,
+					eq(user.id, conversationParticipant.userId),
+				)
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, input.conversationId),
+						isNull(conversationParticipant.leftAt),
+					),
+				);
+
+			return participants;
 		}),
 });
 export type AppRouter = typeof appRouter;
