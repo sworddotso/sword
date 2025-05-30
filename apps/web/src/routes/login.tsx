@@ -1,3 +1,6 @@
+import { AuthContainer } from "@/components/auth/auth-container";
+import { AuthThemeProvider } from "@/components/auth/auth-theme-provider";
+import { ThemeCustomizer } from "@/components/auth/theme-customizer";
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 import { createFileRoute } from "@tanstack/react-router";
@@ -8,11 +11,18 @@ export const Route = createFileRoute("/login")({
 });
 
 function RouteComponent() {
-	const [showSignIn, setShowSignIn] = useState(false);
+	const [showSignIn, setShowSignIn] = useState(true);
 
-	return showSignIn ? (
-		<SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-	) : (
-		<SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+	return (
+		<AuthThemeProvider>
+			<AuthContainer>
+				{showSignIn ? (
+					<SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
+				) : (
+					<SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+				)}
+			</AuthContainer>
+			<ThemeCustomizer />
+		</AuthThemeProvider>
 	);
 }

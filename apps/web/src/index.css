@@ -17,6 +17,182 @@ body {
 	}
 }
 
+/* Theme-aware scrollbar styles */
+@layer utilities {
+	/* Base scrollbar styling */
+	.scrollbar-thin {
+		scrollbar-width: thin;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar {
+		width: 6px;
+		height: 6px;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	/* Default theme (dark) scrollbars */
+	.scrollbar-thin {
+		scrollbar-color: #52525b #27272a;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-track {
+		background: #27272a;
+		border-radius: 3px;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-thumb {
+		background: #52525b;
+		border-radius: 3px;
+		transition: background-color 0.2s ease;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+		background: #71717a;
+	}
+
+	/* Light theme scrollbars */
+	[data-theme="light"] .scrollbar-thin,
+	.theme-light .scrollbar-thin {
+		scrollbar-color: #d4d4d8 #f4f4f5;
+	}
+
+	[data-theme="light"] .scrollbar-thin::-webkit-scrollbar-track,
+	.theme-light .scrollbar-thin::-webkit-scrollbar-track {
+		background: #f4f4f5;
+	}
+
+	[data-theme="light"] .scrollbar-thin::-webkit-scrollbar-thumb,
+	.theme-light .scrollbar-thin::-webkit-scrollbar-thumb {
+		background: #d4d4d8;
+	}
+
+	[data-theme="light"] .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+	.theme-light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+		background: #a1a1aa;
+	}
+
+	/* Discord theme scrollbars */
+	[data-theme="discord"] .scrollbar-thin,
+	.theme-discord .scrollbar-thin {
+		scrollbar-color: #1e1f22 #2f3136;
+	}
+
+	[data-theme="discord"] .scrollbar-thin::-webkit-scrollbar-track,
+	.theme-discord .scrollbar-thin::-webkit-scrollbar-track {
+		background: #2f3136;
+	}
+
+	[data-theme="discord"] .scrollbar-thin::-webkit-scrollbar-thumb,
+	.theme-discord .scrollbar-thin::-webkit-scrollbar-thumb {
+		background: #1e1f22;
+	}
+
+	[data-theme="discord"] .scrollbar-thin::-webkit-scrollbar-thumb:hover,
+	.theme-discord .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+		background: #36393f;
+	}
+
+	/* Individual scrollbar track and thumb utilities for compatibility */
+	.scrollbar-track-zinc-100::-webkit-scrollbar-track {
+		background: #f4f4f5;
+	}
+	.scrollbar-track-zinc-700::-webkit-scrollbar-track {
+		background: #374151;
+	}
+	.scrollbar-track-zinc-800::-webkit-scrollbar-track {
+		background: #27272a;
+	}
+	.scrollbar-track-zinc-900::-webkit-scrollbar-track {
+		background: #18181b;
+	}
+	.scrollbar-track-transparent::-webkit-scrollbar-track {
+		background: transparent;
+	}
+
+	.scrollbar-thumb-zinc-300::-webkit-scrollbar-thumb {
+		background: #d4d4d8;
+	}
+	.scrollbar-thumb-zinc-600::-webkit-scrollbar-thumb {
+		background: #52525b;
+	}
+	.scrollbar-thumb-zinc-700::-webkit-scrollbar-thumb {
+		background: #374151;
+	}
+
+	/* Special styling for emoji picker */
+	.emoji-picker-scrollbar {
+		scrollbar-width: thin;
+	}
+
+	.emoji-picker-scrollbar::-webkit-scrollbar {
+		width: 8px;
+		height: 8px;
+	}
+
+	.emoji-picker-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+		border-radius: 4px;
+	}
+
+	.emoji-picker-scrollbar::-webkit-scrollbar-thumb {
+		border-radius: 4px;
+		transition: background-color 0.2s ease;
+	}
+
+	/* Light theme emoji picker */
+	[data-theme="light"] .emoji-picker-scrollbar,
+	.theme-light .emoji-picker-scrollbar {
+		scrollbar-color: #d4d4d8 #f4f4f5;
+	}
+
+	[data-theme="light"] .emoji-picker-scrollbar::-webkit-scrollbar-track,
+	.theme-light .emoji-picker-scrollbar::-webkit-scrollbar-track {
+		background: #f4f4f5;
+	}
+
+	[data-theme="light"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb,
+	.theme-light .emoji-picker-scrollbar::-webkit-scrollbar-thumb {
+		background: #d4d4d8;
+	}
+
+	[data-theme="light"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover,
+	.theme-light .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: #a1a1aa;
+	}
+
+	/* Dark theme emoji picker */
+	[data-theme="default"] .emoji-picker-scrollbar,
+	[data-theme="discord"] .emoji-picker-scrollbar,
+	.theme-default .emoji-picker-scrollbar,
+	.theme-discord .emoji-picker-scrollbar {
+		scrollbar-color: #52525b #374151;
+	}
+
+	[data-theme="default"] .emoji-picker-scrollbar::-webkit-scrollbar-track,
+	[data-theme="discord"] .emoji-picker-scrollbar::-webkit-scrollbar-track,
+	.theme-default .emoji-picker-scrollbar::-webkit-scrollbar-track,
+	.theme-discord .emoji-picker-scrollbar::-webkit-scrollbar-track {
+		background: #374151;
+	}
+
+	[data-theme="default"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb,
+	[data-theme="discord"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb,
+	.theme-default .emoji-picker-scrollbar::-webkit-scrollbar-thumb,
+	.theme-discord .emoji-picker-scrollbar::-webkit-scrollbar-thumb {
+		background: #52525b;
+	}
+
+	[data-theme="default"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover,
+	[data-theme="discord"] .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover,
+	.theme-default .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover,
+	.theme-discord .emoji-picker-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: #71717a;
+	}
+}
+
 :root {
 	--radius: 0.5rem;
 	--background: oklch(1 0 0);

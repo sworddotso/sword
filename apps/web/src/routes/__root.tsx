@@ -50,22 +50,33 @@ function RootComponent() {
 		select: (s) => s.location.pathname,
 	});
 
-	const isIndexPage = pathname === "/";
+	// Pages that should not show the header
+	const hideHeaderPages = ["/", "/login", "/dashboard"];
+	const shouldShowHeader = !hideHeaderPages.includes(pathname);
+
+	// Flag to hide devtools
+	const hideDevtools = import.meta.env.PROD || true;
 
 	return (
 		<>
 			<HeadContent />
 			<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
 				<div
-					className={isIndexPage ? "h-svh" : "grid h-svh grid-rows-[auto_1fr]"}
+					className={
+						shouldShowHeader ? "grid h-svh grid-rows-[auto_1fr]" : "h-svh"
+					}
 				>
-					{!isIndexPage && <Header />}
+					{shouldShowHeader && <Header />}
 					{isFetching ? <Loader /> : <Outlet />}
 				</div>
 				<Toaster richColors />
 			</ThemeProvider>
-			<TanStackRouterDevtools position="bottom-left" />
-			<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+			{!hideDevtools && (
+				<>
+					<TanStackRouterDevtools position="bottom-left" />
+					<ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />
+				</>
+			)}
 		</>
 	);
 }
