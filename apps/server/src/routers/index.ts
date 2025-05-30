@@ -12,6 +12,10 @@ import {
 	waitlist,
 } from "../db";
 import { E2EECrypto } from "../lib/e2ee";
+import {
+	containsSuspiciousContent,
+	sanitizeMessageContent,
+} from "../lib/sanitization";
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
 import { getWebSocketManager } from "../lib/websocket";
 
@@ -149,6 +153,15 @@ export const appRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
+			// Sanitize and validate message content
+			if (containsSuspiciousContent(input.content)) {
+				throw new Error(
+					"Message content contains potentially dangerous elements",
+				);
+			}
+
+			const sanitizedContent = sanitizeMessageContent(input.content);
+
 			// Verify user is participant in conversation
 			const participation = await db
 				.select()
@@ -212,7 +225,7 @@ export const appRouter = router({
 				for (const participant of participantsWithKeys) {
 					try {
 						const encryptedData = E2EECrypto.encryptForRecipient(
-							input.content,
+							sanitizedContent,
 							participant.publicKey as string,
 							participant.userId,
 						);
