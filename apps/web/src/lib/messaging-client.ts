@@ -59,8 +59,9 @@ export async function getMessages(params: {
 	conversationId: string;
 	limit?: number;
 	beforeMessageId?: string;
+	userId: string;
 }): Promise<DecryptedMessage[]> {
-	const privateKey = getPrivateKey();
+	const privateKey = getPrivateKey(params.userId);
 	if (!privateKey) {
 		throw new Error(
 			"No private key available. Please sign in again to set up encryption.",

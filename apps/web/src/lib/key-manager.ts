@@ -165,12 +165,7 @@ export async function getPublicKeyForEncryption(
 	return publicKey;
 }
 
-export function getPrivateKey(userId?: string): CryptoKey | null {
-	if (!userId) {
-		// Return any cached private key for backward compatibility
-		const keys = Array.from(privateKeyCache.values());
-		return keys.length > 0 ? keys[0] : null;
-	}
+export function getPrivateKey(userId: string): CryptoKey | null {
 	return privateKeyCache.get(userId) || null;
 }
 

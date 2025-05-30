@@ -190,12 +190,18 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 	return bytes.buffer;
 }
 
-export function isValidPublicKey(publicKey: string): boolean {
+export async function isValidPublicKey(publicKey: string): Promise<boolean> {
 	try {
-		return (
-			publicKey.includes("-----BEGIN PUBLIC KEY-----") &&
-			publicKey.includes("-----END PUBLIC KEY-----")
-		);
+		if (
+			!publicKey.includes("-----BEGIN PUBLIC KEY-----") ||
+			!publicKey.includes("-----END PUBLIC KEY-----")
+		) {
+			return false;
+		}
+
+		// Perform real crypto validation by trying to import the key
+		await importPublicKey(publicKey);
+		return true;
 	} catch {
 		return false;
 	}

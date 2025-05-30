@@ -272,7 +272,6 @@ export const appRouter = router({
 					conversationId: input.conversationId,
 					type: input.type,
 					replyToMessageId: input.replyToMessageId,
-					metadata: input.metadata,
 					isEdited: false,
 					isDeleted: false,
 					createdAt: now,
@@ -477,7 +476,7 @@ export const appRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			// Validate the public key format
+			// Validate the public key format (server-side validation is already synchronous and works)
 			if (!E2EECrypto.isValidPublicKey(input.publicKey)) {
 				throw new Error("Invalid public key format");
 			}

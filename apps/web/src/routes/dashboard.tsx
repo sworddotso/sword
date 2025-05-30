@@ -81,12 +81,13 @@ function RouteComponent() {
 	};
 
 	const loadMessages = async () => {
-		if (!selectedConversation) return;
+		if (!selectedConversation || !session?.user.id) return;
 
 		try {
 			const msgs = await getMessages({
 				conversationId: selectedConversation,
 				limit: 50,
+				userId: session.user.id,
 			});
 			setMessages(msgs.reverse());
 		} catch (error) {
