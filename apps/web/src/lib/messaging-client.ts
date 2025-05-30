@@ -46,13 +46,6 @@ export async function sendMessage(params: {
 	replyToMessageId?: string;
 	metadata?: string;
 }): Promise<{ messageId: string }> {
-	const privateKey = getPrivateKey();
-	if (!privateKey) {
-		throw new Error(
-			"No private key available. Please sign in again to set up encryption.",
-		);
-	}
-
 	return await trpcClient.sendMessage.mutate({
 		conversationId: params.conversationId,
 		content: params.content,

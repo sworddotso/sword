@@ -14,7 +14,7 @@ WHERE "conversation_participant"."left_at" IS NULL
 ON CONFLICT DO NOTHING;
 
 -- Add missing indexes and constraints
-CREATE UNIQUE INDEX IF NOT EXISTS "message_recipient_message_recipient_unique" ON "message_recipient" ("message_id", "recipient_id");
+CREATE UNIQUE INDEX IF NOT EXISTS "message_recipient_message_id_recipient_id_unique" ON "message_recipient" ("message_id", "recipient_id");
 CREATE INDEX IF NOT EXISTS "message_recipient_message_id_idx" ON "message_recipient" ("message_id");
 CREATE INDEX IF NOT EXISTS "message_recipient_recipient_id_idx" ON "message_recipient" ("recipient_id");
 

@@ -8,10 +8,6 @@ export interface EncryptedMessage {
 	encryptedKey: string;
 }
 
-export interface DecryptedMessage {
-	content: string;
-}
-
 const RSA_ALGORITHM = {
 	name: "RSA-OAEP",
 	modulusLength: 2048,
@@ -134,7 +130,7 @@ export async function encryptMessage(
 export async function decryptMessage(
 	encryptedMessage: EncryptedMessage,
 	privateKey: CryptoKey,
-): Promise<DecryptedMessage> {
+): Promise<{ content: string }> {
 	const encryptedAesKeyBytes = base64ToArrayBuffer(
 		encryptedMessage.encryptedKey,
 	);

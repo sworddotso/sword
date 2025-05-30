@@ -20,7 +20,7 @@ const STORE_NAME = "keypairs";
 
 let db: IDBDatabase | null = null;
 const publicKeyCache = new Map<string, CryptoKey>();
-let privateKey: CryptoKey | null = null;
+const privateKeyCache = new Map<string, CryptoKey>();
 
 export async function initializeDatabase(): Promise<void> {
 	if (db) return;
@@ -71,7 +71,7 @@ export async function generateAndStoreKeyPair(userId: string): Promise<string> {
 		const request = store.put(storedKeyPair);
 
 		request.onsuccess = () => {
-			privateKey = keyPair.privateKey;
+			privateKeyCache.set(userId, keyPair.privateKey);
 			resolve(publicKeyPem);
 		};
 		request.onerror = () => reject(request.error);
@@ -81,7 +81,8 @@ export async function generateAndStoreKeyPair(userId: string): Promise<string> {
 export async function loadPrivateKey(
 	userId: string,
 ): Promise<CryptoKey | null> {
-	if (privateKey) return privateKey;
+	const cached = privateKeyCache.get(userId);
+	if (cached) return cached;
 
 	await initializeDatabase();
 
@@ -103,8 +104,9 @@ export async function loadPrivateKey(
 			}
 
 			try {
-				privateKey = await importPrivateKey(result.privateKeyPem);
-				resolve(privateKey);
+				const key = await importPrivateKey(result.privateKeyPem);
+				privateKeyCache.set(userId, key);
+				resolve(key);
 			} catch (error) {
 				reject(error);
 			}
@@ -140,7 +142,14 @@ export async function getStoredPublicKey(
 
 export async function hasKeyPair(userId: string): Promise<boolean> {
 	const publicKey = await getStoredPublicKey(userId);
-	return publicKey !== null;
+	if (!publicKey) return false;
+
+	try {
+		const privateKey = await loadPrivateKey(userId);
+		return privateKey !== null;
+	} catch (error) {
+		return false;
+	}
 }
 
 export async function getPublicKeyForEncryption(
@@ -156,14 +165,19 @@ export async function getPublicKeyForEncryption(
 	return publicKey;
 }
 
-export function getPrivateKey(): CryptoKey | null {
-	return privateKey;
+export function getPrivateKey(userId?: string): CryptoKey | null {
+	if (!userId) {
+		// Return any cached private key for backward compatibility
+		const keys = Array.from(privateKeyCache.values());
+		return keys.length > 0 ? keys[0] : null;
+	}
+	return privateKeyCache.get(userId) || null;
 }
 
 export async function clearKeys(): Promise<void> {
 	await initializeDatabase();
 
-	privateKey = null;
+	privateKeyCache.clear();
 	publicKeyCache.clear();
 
 	return new Promise((resolve, reject) => {
@@ -195,9 +209,7 @@ export async function deleteKeyPair(userId: string): Promise<void> {
 		const request = store.delete(userId);
 
 		request.onsuccess = () => {
-			if (privateKey) {
-				privateKey = null;
-			}
+			privateKeyCache.delete(userId);
 			resolve();
 		};
 		request.onerror = () => reject(request.error);

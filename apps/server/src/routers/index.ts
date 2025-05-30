@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, lt, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { z } from "zod";
 import {
@@ -205,7 +205,30 @@ export const appRouter = router({
 				);
 			}
 
-			// Use transaction for all database operations
+			// Encrypt message for each participant using E2EE (outside transaction)
+			const encryptionPromises = participantsWithKeys.map(
+				async (participant) => {
+					try {
+						const encryptedData = E2EECrypto.encryptForRecipient(
+							sanitizedContent,
+							participant.publicKey as string,
+							participant.userId,
+						);
+
+						return { participant, encryptedData };
+					} catch (error) {
+						console.error(
+							`Failed to encrypt message for user ${participant.userId}:`,
+							error,
+						);
+						throw new Error("Failed to encrypt message for all recipients");
+					}
+				},
+			);
+
+			const encryptedResults = await Promise.all(encryptionPromises);
+
+			// Use transaction only for database operations
 			await db.transaction(async (tx) => {
 				// Insert message (without content - content is stored encrypted per recipient)
 				await tx.insert(message).values({
@@ -220,29 +243,6 @@ export const appRouter = router({
 					createdAt: now,
 					updatedAt: now,
 				});
-
-				// Encrypt message for each participant using E2EE
-				const encryptionPromises = participantsWithKeys.map(
-					async (participant) => {
-						try {
-							const encryptedData = E2EECrypto.encryptForRecipient(
-								sanitizedContent,
-								participant.publicKey as string,
-								participant.userId,
-							);
-
-							return { participant, encryptedData };
-						} catch (error) {
-							console.error(
-								`Failed to encrypt message for user ${participant.userId}:`,
-								error,
-							);
-							throw new Error("Failed to encrypt message for all recipients");
-						}
-					},
-				);
-
-				const encryptedResults = await Promise.all(encryptionPromises);
 
 				// Store all encrypted messages and delivery records
 				for (const { participant, encryptedData } of encryptedResults) {
@@ -442,24 +442,12 @@ export const appRouter = router({
 				throw new Error("Message not found");
 			}
 
-			// First check if delivery record exists and has deliveredAt
-			const deliveryRecord = await db
-				.select({ deliveredAt: messageDelivery.deliveredAt })
-				.from(messageDelivery)
-				.where(
-					and(
-						eq(messageDelivery.messageId, input.messageId),
-						eq(messageDelivery.userId, ctx.session.user.id),
-					),
-				)
-				.limit(1);
-
-			// Update with proper deliveredAt handling
+			// Update with SQL coalesce for deliveredAt
 			await db
 				.update(messageDelivery)
 				.set({
 					readAt: now,
-					deliveredAt: deliveryRecord[0]?.deliveredAt || now,
+					deliveredAt: sql`coalesce(${messageDelivery.deliveredAt}, ${now})`,
 				})
 				.where(
 					and(
@@ -543,7 +531,11 @@ export const appRouter = router({
 					publicKey: user.publicKey,
 				})
 				.from(user)
-				.where(or(...input.userIds.map((id) => eq(user.id, id))));
+				.where(
+					input.userIds.length === 1
+						? eq(user.id, input.userIds[0])
+						: or(...input.userIds.map((id) => eq(user.id, id))),
+				);
 
 			return users.map((u) => ({
 				userId: u.id,
