@@ -96,44 +96,46 @@ export const appRouter = router({
 			}),
 		)
 		.mutation(async ({ input, ctx }) => {
-			const conversationId = nanoid();
-			const now = new Date();
+			return await db.transaction(async (tx) => {
+				const conversationId = nanoid();
+				const now = new Date();
 
-			// Create conversation
-			await db.insert(conversation).values({
-				id: conversationId,
-				type: input.type,
-				name: input.name,
-				description: input.description,
-				isEncrypted: true,
-				createdAt: now,
-				updatedAt: now,
-				createdByUserId: ctx.session.user.id,
-			});
+				// Create conversation
+				await tx.insert(conversation).values({
+					id: conversationId,
+					type: input.type,
+					name: input.name,
+					description: input.description,
+					isEncrypted: true,
+					createdAt: now,
+					updatedAt: now,
+					createdByUserId: ctx.session.user.id,
+				});
 
-			// Add creator as participant
-			await db.insert(conversationParticipant).values({
-				id: nanoid(),
-				conversationId,
-				userId: ctx.session.user.id,
-				joinedAt: now,
-				isAdmin: true,
-			});
+				// Add creator as participant
+				await tx.insert(conversationParticipant).values({
+					id: nanoid(),
+					conversationId,
+					userId: ctx.session.user.id,
+					joinedAt: now,
+					isAdmin: true,
+				});
 
-			// Add other participants
-			for (const userId of input.participantUserIds) {
-				if (userId !== ctx.session.user.id) {
-					await db.insert(conversationParticipant).values({
-						id: nanoid(),
-						conversationId,
-						userId,
-						joinedAt: now,
-						isAdmin: false,
-					});
+				// Add other participants
+				for (const userId of input.participantUserIds) {
+					if (userId !== ctx.session.user.id) {
+						await tx.insert(conversationParticipant).values({
+							id: nanoid(),
+							conversationId,
+							userId,
+							joinedAt: now,
+							isAdmin: false,
+						});
+					}
 				}
-			}
 
-			return { conversationId };
+				return { conversationId };
+			});
 		}),
 
 	sendMessage: protectedProcedure
@@ -190,53 +192,57 @@ export const appRouter = router({
 				);
 			}
 
-			// Insert message (without content - content is stored encrypted per recipient)
-			await db.insert(message).values({
-				id: messageId,
-				conversationId: input.conversationId,
-				senderId: ctx.session.user.id,
-				type: input.type,
-				replyToMessageId: input.replyToMessageId,
-				metadata: input.metadata,
-				isEdited: false,
-				isDeleted: false,
-				createdAt: now,
-				updatedAt: now,
-			});
+			// Use transaction for all database operations
+			await db.transaction(async (tx) => {
+				// Insert message (without content - content is stored encrypted per recipient)
+				await tx.insert(message).values({
+					id: messageId,
+					conversationId: input.conversationId,
+					senderId: ctx.session.user.id,
+					type: input.type,
+					replyToMessageId: input.replyToMessageId,
+					metadata: input.metadata,
+					isEdited: false,
+					isDeleted: false,
+					createdAt: now,
+					updatedAt: now,
+				});
 
-			// Encrypt message for each participant using E2EE
-			for (const participant of participantsWithKeys) {
-				try {
-					const encryptedData = E2EECrypto.encryptForRecipient(
-						input.content,
-						participant.publicKey as string,
-					);
+				// Encrypt message for each participant using E2EE
+				for (const participant of participantsWithKeys) {
+					try {
+						const encryptedData = E2EECrypto.encryptForRecipient(
+							input.content,
+							participant.publicKey as string,
+							participant.userId,
+						);
 
-					// Store encrypted message for this recipient
-					await db.insert(messageRecipient).values({
-						id: nanoid(),
-						messageId,
-						recipientId: participant.userId,
-						encryptedContent: encryptedData.encryptedContent,
-						encryptedKey: encryptedData.encryptedKey,
-					});
-
-					// Create delivery record for participants except sender
-					if (participant.userId !== ctx.session.user.id) {
-						await db.insert(messageDelivery).values({
+						// Store encrypted message for this recipient
+						await tx.insert(messageRecipient).values({
 							id: nanoid(),
 							messageId,
-							userId: participant.userId,
+							recipientId: participant.userId,
+							encryptedContent: encryptedData.encryptedContent,
+							encryptedKey: encryptedData.encryptedKey,
 						});
+
+						// Create delivery record for participants except sender
+						if (participant.userId !== ctx.session.user.id) {
+							await tx.insert(messageDelivery).values({
+								id: nanoid(),
+								messageId,
+								userId: participant.userId,
+							});
+						}
+					} catch (error) {
+						console.error(
+							`Failed to encrypt message for user ${participant.userId}:`,
+							error,
+						);
+						throw new Error("Failed to encrypt message for all recipients");
 					}
-				} catch (error) {
-					console.error(
-						`Failed to encrypt message for user ${participant.userId}:`,
-						error,
-					);
-					throw new Error("Failed to encrypt message for all recipients");
 				}
-			}
+			});
 
 			// Broadcast message notification via WebSocket (without content for E2EE)
 			const wsManager = getWebSocketManager();
@@ -395,11 +401,24 @@ export const appRouter = router({
 				throw new Error("Message not found");
 			}
 
+			// First check if delivery record exists and has deliveredAt
+			const deliveryRecord = await db
+				.select({ deliveredAt: messageDelivery.deliveredAt })
+				.from(messageDelivery)
+				.where(
+					and(
+						eq(messageDelivery.messageId, input.messageId),
+						eq(messageDelivery.userId, ctx.session.user.id),
+					),
+				)
+				.limit(1);
+
+			// Update with proper deliveredAt handling
 			await db
 				.update(messageDelivery)
 				.set({
 					readAt: now,
-					deliveredAt: messageDelivery.deliveredAt ?? now,
+					deliveredAt: deliveryRecord[0]?.deliveredAt || now,
 				})
 				.where(
 					and(

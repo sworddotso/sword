@@ -1,4 +1,5 @@
 import {
+	constants,
 	createCipheriv,
 	createDecipheriv,
 	generateKeyPairSync,
@@ -102,6 +103,7 @@ export class E2EECrypto {
 	public static encryptForRecipient(
 		content: string,
 		recipientPublicKey: string,
+		recipientId?: string,
 	): E2EEMessageData {
 		// Generate random AES key for this message
 		const messageKey = randomBytes(32);
@@ -113,13 +115,14 @@ export class E2EECrypto {
 		const encryptedKey = publicEncrypt(
 			{
 				key: recipientPublicKey,
-				padding: 1, // OAEP padding
+				padding: constants.RSA_PKCS1_OAEP_PADDING,
+				oaepHash: "sha256",
 			},
 			messageKey,
 		);
 
 		return {
-			recipientId: "", // This will be set by the caller
+			recipientId: recipientId || "",
 			encryptedContent: JSON.stringify(encryptedMessage),
 			encryptedKey: encryptedKey.toString("base64"),
 		};
@@ -140,7 +143,8 @@ export class E2EECrypto {
 		const messageKey = privateDecrypt(
 			{
 				key: recipientPrivateKey,
-				padding: 1, // OAEP padding
+				padding: constants.RSA_PKCS1_OAEP_PADDING,
+				oaepHash: "sha256",
 			},
 			encryptedKeyBuffer,
 		);
@@ -162,14 +166,11 @@ export class E2EECrypto {
 		recipients: Array<{ id: string; publicKey: string }>,
 	): E2EEMessageData[] {
 		return recipients.map((recipient) => {
-			const encryptedData = E2EECrypto.encryptForRecipient(
+			return E2EECrypto.encryptForRecipient(
 				content,
 				recipient.publicKey,
+				recipient.id,
 			);
-			return {
-				...encryptedData,
-				recipientId: recipient.id,
-			};
 		});
 	}
 
@@ -183,7 +184,8 @@ export class E2EECrypto {
 			publicEncrypt(
 				{
 					key: publicKey,
-					padding: 1,
+					padding: constants.RSA_PKCS1_OAEP_PADDING,
+					oaepHash: "sha256",
 				},
 				testKey,
 			);

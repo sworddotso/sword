@@ -1,7 +1,10 @@
 import type { IncomingMessage } from "node:http";
 import { parse } from "node:url";
 import type { User } from "better-auth/types";
+import { and, eq, isNull } from "drizzle-orm";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
+import { db } from "../db";
+import { conversationParticipant } from "../db/schema/messages";
 import { auth } from "./auth";
 
 interface AuthenticatedWebSocket extends WebSocket {
@@ -59,9 +62,18 @@ class WebSocketManager {
 		req: IncomingMessage;
 	}): Promise<boolean> {
 		try {
-			// For now, allow all connections and verify in handleConnection
-			// We can implement proper auth verification here later
-			return true;
+			// Verify session in verifyClient to prevent unauthorized upgrades
+			const session = await auth.api.getSession({
+				headers: new Headers(
+					Object.entries(
+						info.req.headers as Record<string, string | string[]>,
+					).map(([key, value]) => [
+						key,
+						Array.isArray(value) ? value.join(", ") : value,
+					]),
+				),
+			});
+			return !!session;
 		} catch (error) {
 			console.error("WebSocket auth error:", error);
 			return false;
@@ -112,7 +124,7 @@ class WebSocketManager {
 		ws.on("error", (error) => console.error("WebSocket error:", error));
 	}
 
-	private handleMessage(ws: AuthenticatedWebSocket, data: RawData) {
+	private async handleMessage(ws: AuthenticatedWebSocket, data: RawData) {
 		try {
 			const message: WebSocketMessage = JSON.parse(data.toString());
 
@@ -122,7 +134,7 @@ class WebSocketManager {
 
 			switch (message.type) {
 				case "join_conversation":
-					this.handleJoinConversation(ws, message);
+					await this.handleJoinConversation(ws, message);
 					break;
 				case "leave_conversation":
 					this.handleLeaveConversation(ws, message);
@@ -139,7 +151,7 @@ class WebSocketManager {
 		}
 	}
 
-	private handleJoinConversation(
+	private async handleJoinConversation(
 		ws: AuthenticatedWebSocket,
 		message: WebSocketMessage,
 	) {
@@ -147,21 +159,45 @@ class WebSocketManager {
 
 		const conversationId = message.conversationId;
 
-		if (!this.conversationMembers.has(conversationId)) {
-			this.conversationMembers.set(conversationId, new Set());
-		}
+		// Verify user is a participant in the conversation
+		try {
+			const participant = await db
+				.select()
+				.from(conversationParticipant)
+				.where(
+					and(
+						eq(conversationParticipant.conversationId, conversationId),
+						eq(conversationParticipant.userId, ws.userId),
+						isNull(conversationParticipant.leftAt),
+					),
+				)
+				.limit(1);
 
-		this.conversationMembers.get(conversationId)?.add(ws.userId);
+			if (participant.length === 0) {
+				console.error(
+					`User ${ws.userId} attempted to join conversation ${conversationId} without permission`,
+				);
+				return;
+			}
 
-		this.broadcastToConversation(
-			conversationId,
-			{
-				type: "user_joined",
+			if (!this.conversationMembers.has(conversationId)) {
+				this.conversationMembers.set(conversationId, new Set());
+			}
+
+			this.conversationMembers.get(conversationId)?.add(ws.userId);
+
+			this.broadcastToConversation(
 				conversationId,
-				userId: ws.userId,
-			},
-			ws.userId,
-		);
+				{
+					type: "user_joined",
+					conversationId,
+					userId: ws.userId,
+				},
+				ws.userId,
+			);
+		} catch (error) {
+			console.error("Error verifying conversation membership:", error);
+		}
 	}
 
 	private handleLeaveConversation(
@@ -304,7 +340,15 @@ export let wsManager: WebSocketManager | null = null;
 
 export function initializeWebSocket(port = 3001) {
 	if (!wsManager) {
-		wsManager = new WebSocketManager(port);
+		try {
+			wsManager = new WebSocketManager(port);
+		} catch (error) {
+			console.error(
+				`Failed to initialize WebSocket server on port ${port}:`,
+				error,
+			);
+			throw error;
+		}
 	}
 	return wsManager;
 }
