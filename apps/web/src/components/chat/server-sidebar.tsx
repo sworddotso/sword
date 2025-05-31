@@ -5,6 +5,8 @@ import { AddServerButton } from "./add-server-button";
 import { useChatTheme } from "./chat-theme-provider";
 import { ServerItem } from "./server-item";
 import { UserProfilePopup } from "./user-profile-popup";
+import { useStore, tables } from '@/lib/livestore'
+import { queryDb } from '@livestore/livestore'
 
 // Import types from user profile popup
 type UserStatus = "online" | "away" | "busy" | "invisible";
@@ -20,34 +22,15 @@ interface Server {
 	name: string;
 	image: string;
 	color?: string;
+	icon?: string;
+	banner?: string;
+	memberCount?: number;
 }
 
-const mockServers: Server[] = [
-	{
-		id: "sword",
-		name: "Sword",
-		image: "/images/servers/sword.png",
-		color: "bg-blue-500",
-	},
-	{
-		id: "design",
-		name: "Design Team",
-		image: "/images/servers/sword.png",
-		color: "bg-purple-500",
-	},
-	{
-		id: "dev",
-		name: "Dev Community",
-		image: "/images/servers/sword.png",
-		color: "bg-yellow-500",
-	},
-	{
-		id: "gaming",
-		name: "Gaming",
-		image: "/images/servers/sword.png",
-		color: "bg-green-500",
-	},
-];
+// Define the servers query outside the component
+const serversQuery = queryDb(() => 
+	tables.servers.where({ deletedAt: null })
+)
 
 interface ServerSidebarProps {
 	selectedServer: string;
@@ -73,11 +56,26 @@ export default function ServerSidebar({
 	className,
 }: ServerSidebarProps) {
 	const { theme } = useChatTheme();
+	const { store } = useStore()
 	const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
 	const [userStatus, setUserStatus] = useState<UserStatus>("online");
 	const [customStatus, setCustomStatus] = useState<CustomStatus | undefined>(
 		undefined,
 	);
+
+	// Use the query to get reactive data
+	const servers = store.useQuery(serversQuery)
+
+	// Transform servers data to match the component interface
+	const transformedServers: Server[] = servers.map((server: any) => ({
+		id: server.id,
+		name: server.name,
+		image: server.icon || "/images/servers/sword.png", // fallback icon
+		icon: server.icon,
+		banner: server.banner,
+		memberCount: server.memberCount,
+		color: server.id === 'server_sword_legends' ? 'bg-blue-500' : undefined // You can customize colors per server
+	}))
 
 	// Debug: Track status changes
 	useEffect(() => {
@@ -144,6 +142,7 @@ export default function ServerSidebar({
 									? theme.serverSidebar.serverItem.selectedRing
 									: theme.serverSidebar.serverItem.border,
 							)}
+							onClick={() => onServerSelect("dms")}
 						>
 							<EnvelopeIcon className="h-6 w-6 text-zinc-300" />
 						</div>
@@ -152,7 +151,7 @@ export default function ServerSidebar({
 
 				{/* Server List */}
 				<div className="flex-1 space-y-3 py-3">
-					{mockServers.map((server) => (
+					{transformedServers.map((server) => (
 						<ServerItem
 							key={server.id}
 							id={server.id}

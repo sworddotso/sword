@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
-import { Bars3Icon } from "@heroicons/react/16/solid";
+import { Bars3Icon, UserPlusIcon } from "@heroicons/react/16/solid";
+import { useState } from "react";
 import { useChatTheme } from "./chat-theme-provider";
+import { InvitePopup } from "./invite-popup";
 
 interface ServerHeaderProps {
 	serverName: string;
@@ -16,6 +18,7 @@ export default function ServerHeader({
 	className,
 }: ServerHeaderProps) {
 	const { theme } = useChatTheme();
+	const [showInvitePopup, setShowInvitePopup] = useState(false);
 
 	// Mock server data - in real app this would come from API
 	const serverData = {
@@ -50,6 +53,7 @@ export default function ServerHeader({
 	if (isCollapsed) {
 		// Collapsed header - only server name
 		return (
+			<>
 			<div
 				className={cn(
 					"flex-shrink-0 border-b px-4 py-3",
@@ -68,6 +72,21 @@ export default function ServerHeader({
 					>
 						{serverName}
 					</h1>
+						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								onClick={() => setShowInvitePopup(true)}
+								className={cn(
+									"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+									theme.userBar.buttons.background,
+									theme.userBar.buttons.hoverBackground,
+									theme.userBar.buttons.color,
+									theme.userBar.buttons.hoverColor,
+								)}
+								title="Invite Friends"
+							>
+								<UserPlusIcon className="h-4 w-4" />
+							</button>
 					<button
 						type="button"
 						className={cn(
@@ -82,11 +101,21 @@ export default function ServerHeader({
 					</button>
 				</div>
 			</div>
+				</div>
+
+				<InvitePopup
+					isOpen={showInvitePopup}
+					onClose={() => setShowInvitePopup(false)}
+					serverId={serverId}
+					serverName={serverName}
+				/>
+			</>
 		);
 	}
 
 	// Full header with banner
 	return (
+		<>
 		<div
 			className={cn(
 				"flex-shrink-0",
@@ -118,7 +147,21 @@ export default function ServerHeader({
 				</div>
 
 				{/* Server Actions */}
-				<div className="absolute top-3 right-4 transition-all duration-500 ease-out">
+					<div className="absolute top-3 right-4 flex items-center gap-1 transition-all duration-500 ease-out">
+						<button
+							type="button"
+							onClick={() => setShowInvitePopup(true)}
+							className={cn(
+								"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+								theme.userBar.buttons.background,
+								theme.userBar.buttons.hoverBackground,
+								theme.userBar.buttons.color,
+								theme.userBar.buttons.hoverColor,
+							)}
+							title="Invite Friends"
+						>
+							<UserPlusIcon className="h-4 w-4" />
+						</button>
 					<button
 						type="button"
 						className={cn(
@@ -134,5 +177,13 @@ export default function ServerHeader({
 				</div>
 			</div>
 		</div>
+
+			<InvitePopup
+				isOpen={showInvitePopup}
+				onClose={() => setShowInvitePopup(false)}
+				serverId={serverId}
+				serverName={serverName}
+			/>
+		</>
 	);
 }

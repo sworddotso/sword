@@ -16,7 +16,12 @@
 		"db:generate": "turbo -F server db:generate",
 		"db:migrate": "turbo -F server db:migrate"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@livestore/adapter-web": "^0.3.0",
+		"@livestore/livestore": "^0.3.0",
+		"@livestore/react": "^0.3.0",
+		"@livestore/sync-cf": "^0.3.0"
+	},
 	"devDependencies": {
 		"turbo": "^2.4.2",
 		"@biomejs/biome": "1.9.4",

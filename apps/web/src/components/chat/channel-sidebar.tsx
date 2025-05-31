@@ -10,6 +10,12 @@ import { CallControls } from "./call-controls";
 import { ChannelSection } from "./channel-section";
 import { useChatTheme } from "./chat-theme-provider";
 import ServerHeader from "./server-header";
+import { useStore, tables } from '@/lib/livestore'
+import { queryDb } from '@livestore/livestore'
+
+// =============================================================================
+// TYPES & INTERFACES
+// =============================================================================
 
 interface ChannelSidebarProps {
 	selectedChannel: string;
@@ -27,6 +33,17 @@ interface ChannelSidebarProps {
 	className?: string;
 }
 
+interface ChannelData {
+	id: string;
+	name: string;
+	notifications?: number;
+	userCount?: number;
+}
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+
 export default function ChannelSidebar({
 	selectedChannel,
 	onChannelSelect,
@@ -40,25 +57,113 @@ export default function ChannelSidebar({
 	className,
 }: ChannelSidebarProps) {
 	const { theme } = useChatTheme();
+	const { store } = useStore()
 	const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 	const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
 
-	const textChannels = [
-		{ name: "dev-discussion", notifications: 3 },
-		{ name: "general", notifications: 0 },
-		{ name: "random", notifications: 0 },
-		{ name: "random", notifications: 0 },
-		{ name: "random", notifications: 0 },
-		{ name: "random", notifications: 0 },
-		{ name: "random", notifications: 1 },
-		{ name: "announcements", notifications: 0 },
-	];
+	// =============================================================================
+	// DATABASE QUERIES
+	// =============================================================================
 
-	const voiceChannels = [
-		{ name: "General Voice", notifications: 0, userCount: 3 },
-		{ name: "Dev Talk", notifications: 0, userCount: 0 },
-		{ name: "Music Room", notifications: 0, userCount: 7 },
-	];
+	// Query channels for the selected server
+	const channelsQuery = queryDb(() => {
+		console.log('🔍 ChannelSidebar: Querying channels for server:', selectedServer)
+		if (!selectedServer) {
+			console.warn('⚠️ ChannelSidebar: No selectedServer provided')
+			return tables.channels.where({ id: 'never-matches' })
+		}
+		return tables.channels.where({ 
+			serverId: selectedServer, 
+			deletedAt: null 
+		})
+	})
+	
+	// Query categories for the selected server
+	const categoriesQuery = queryDb(() => {
+		if (!selectedServer) {
+			return tables.categories.where({ id: 'never-matches' })
+		}
+		return tables.categories.where({ 
+			serverId: selectedServer 
+		})
+	})
+	
+	// Get reactive data
+	const channels = store.useQuery(channelsQuery)
+	const categories = store.useQuery(categoriesQuery)
+
+	console.log('📋 Channel Sidebar Data:', {
+		selectedServer,
+		selectedChannel,
+		channelsCount: channels?.length || 0,
+		categoriesCount: categories?.length || 0,
+		channels: channels?.map((c: any) => ({ id: c.id, name: c.name, type: c.type, serverId: c.serverId })),
+		propsReceived: {
+			selectedServer,
+			selectedChannel,
+			serverName
+		}
+	})
+	
+	// Create a map of channel ID to channel name for easy lookup
+	const channelMap = new Map(channels.map((channel: any) => [channel.id, channel.name]))
+	
+	// =============================================================================
+	// DATA PROCESSING
+	// =============================================================================
+
+	// Process channels data to group by category and type
+	const processChannelsData = () => {
+		if (!channels || !categories) {
+			console.log('⚠️ No channels or categories data available')
+			return { textChannels: [], voiceChannels: [] }
+		}
+		
+		// Create category map for easier lookup
+		const categoryMap = new Map(categories.map((cat: any) => [cat.id, cat.name]))
+		
+		// Separate text and voice channels - use IDs consistently
+		const textChannels = channels
+			.filter((channel: any) => {
+				const isTextChannel = channel.type === 'text' || channel.type === 'announcement' || !channel.type
+				console.log(`📝 Channel ${channel.name} (${channel.type || 'undefined'}) is text channel:`, isTextChannel)
+				return isTextChannel
+			})
+			.sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+			.map((channel: any) => ({
+				id: channel.id,
+				name: channel.name,
+				notifications: 0, // You can implement real notification counting later
+				categoryName: channel.categoryId ? categoryMap.get(channel.categoryId) : 'UNCATEGORIZED'
+			}))
+
+		const voiceChannels = channels
+			.filter((channel: any) => channel.type === 'voice')
+			.sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+			.map((channel: any) => ({
+				id: channel.id,
+				name: channel.name,
+				notifications: 0,
+				userCount: 0, // You can implement real user counting later
+				categoryName: channel.categoryId ? categoryMap.get(channel.categoryId) : 'UNCATEGORIZED'
+			}))
+		
+		console.log('📊 Processed Channels:', {
+			textChannels: textChannels.map(c => ({ id: c.id, name: c.name })),
+			voiceChannels: voiceChannels.map(c => ({ id: c.id, name: c.name })),
+		})
+		
+		return { textChannels, voiceChannels }
+	}
+	
+	const { textChannels, voiceChannels } = processChannelsData()
+
+	// Get the name of the selected channel for display
+	const selectedChannelName = channelMap.get(selectedChannel) || selectedChannel
+
+	// =============================================================================
+	// EVENT HANDLERS
+	// =============================================================================
 
 	const handleAddTextChannel = () => {
 		console.log("Add text channel");
@@ -67,6 +172,15 @@ export default function ChannelSidebar({
 	const handleAddVoiceChannel = () => {
 		console.log("Add voice channel");
 	};
+
+	// Handle channel selection - use ID directly
+	const handleChannelSelect = (channelId: string) => {
+		console.log('🔄 Channel selected:', {
+			channelId,
+			channelName: channelMap.get(channelId)
+		})
+		onChannelSelect(channelId)
+	}
 
 	// Handle scroll to collapse/expand header
 	const handleScroll = (event: Event) => {
@@ -90,6 +204,10 @@ export default function ChannelSidebar({
 		}
 	};
 
+	// =============================================================================
+	// EFFECTS
+	// =============================================================================
+
 	useEffect(() => {
 		if (scrollElement) {
 			scrollElement.addEventListener("scroll", handleScroll);
@@ -101,6 +219,89 @@ export default function ChannelSidebar({
 			return () => scrollElement.removeEventListener("scroll", handleScroll);
 		}
 	}, [scrollElement]);
+
+	// =============================================================================
+	// RENDER CONDITIONS
+	// =============================================================================
+
+	// Show a message if no data is available
+	if (!channels?.length && selectedServer !== 'dms') {
+		console.warn('⚠️ No channels found for server:', selectedServer)
+		return (
+			<div
+				className={cn(
+					"flex h-full flex-col overflow-hidden",
+					theme.channelSidebar.background,
+					theme.channelSidebar.border,
+					theme.channelSidebar.borderRadius,
+					className,
+				)}
+			>
+				<ServerHeader
+					serverName={serverName}
+					serverId={selectedServer}
+					isCollapsed={isHeaderCollapsed}
+				/>
+				<div className="flex flex-1 items-center justify-center p-4">
+					<div className="text-center">
+						<p className="text-zinc-400 text-lg font-semibold">⚠️ No channels found</p>
+						<p className="text-zinc-500 text-sm mt-2">
+							Server ID: {selectedServer}
+						</p>
+						<p className="text-zinc-500 text-sm mt-1">
+							Please seed the database first at <a href="/test" className="text-blue-400 underline">/test</a>
+						</p>
+						<button 
+							onClick={() => window.location.href = '/test'}
+							className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
+						>
+							🌱 Go to Seed Page
+						</button>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
+	// Show warning if we have channels but they're empty
+	if (channels?.length && textChannels.length === 0 && voiceChannels.length === 0) {
+		console.warn('⚠️ Channels found but none processed properly:', {
+			rawChannels: channels.map((c: any) => ({ id: c.id, name: c.name, type: c.type, serverId: c.serverId })),
+			selectedServer
+		})
+		return (
+			<div
+				className={cn(
+					"flex h-full flex-col overflow-hidden",
+					theme.channelSidebar.background,
+					theme.channelSidebar.border,
+					theme.channelSidebar.borderRadius,
+					className,
+				)}
+			>
+				<ServerHeader
+					serverName={serverName}
+					serverId={selectedServer}
+					isCollapsed={isHeaderCollapsed}
+				/>
+				<div className="flex flex-1 items-center justify-center p-4">
+					<div className="text-center">
+						<p className="text-zinc-400 text-lg font-semibold">🔧 Channel processing issue</p>
+						<p className="text-zinc-500 text-sm mt-2">
+							Found {channels.length} channels but none were processed correctly
+						</p>
+						<p className="text-zinc-500 text-sm mt-1">
+							Check console logs for details
+						</p>
+					</div>
+				</div>
+			</div>
+		)
+	}
+
+	// =============================================================================
+	// MAIN RENDER
+	// =============================================================================
 
 	return (
 		<div
@@ -171,7 +372,7 @@ export default function ChannelSidebar({
 						type="text"
 						channels={textChannels}
 						selectedChannel={selectedChannel}
-						onChannelSelect={onChannelSelect}
+						onChannelSelect={handleChannelSelect}
 						onAddChannel={handleAddTextChannel}
 					/>
 

@@ -17,3 +17,4 @@ export { ChatThemeCustomizer } from "./chat-theme-customizer";
 export { ThemeBuilder } from "./theme-builder";
 export { CallControls } from "./call-controls";
 export { UserProfilePopup } from "./user-profile-popup";
+export { InvitePopup } from "./invite-popup";

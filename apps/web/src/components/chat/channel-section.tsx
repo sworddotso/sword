@@ -5,6 +5,7 @@ import { ChannelItem } from "./channel-item";
 import { useChatTheme } from "./chat-theme-provider";
 
 interface Channel {
+	id: string;
 	name: string;
 	notifications?: number;
 	userCount?: number;
@@ -15,7 +16,7 @@ interface ChannelSectionProps {
 	type: "text" | "voice";
 	channels: Channel[];
 	selectedChannel?: string;
-	onChannelSelect?: (channelName: string) => void;
+	onChannelSelect?: (channelId: string) => void;
 	onJoinVoice?: (channelName: string) => void;
 	onAddChannel?: () => void;
 	defaultOpen?: boolean;
@@ -64,16 +65,24 @@ export function ChannelSection({
 					</span>
 				</div>
 				{onAddChannel && (
-					<button
-						type="button"
+					<div
 						onClick={(e) => {
 							e.stopPropagation();
 							onAddChannel();
 						}}
-						className="h-4 w-4 text-zinc-500 transition-colors hover:text-zinc-300"
+						className="h-4 w-4 text-zinc-500 transition-colors hover:text-zinc-300 cursor-pointer"
+						role="button"
+						tabIndex={0}
+						onKeyDown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								e.stopPropagation();
+								onAddChannel();
+							}
+						}}
 					>
 						<PlusIcon className="h-4 w-4" />
-					</button>
+					</div>
 				)}
 			</button>
 
@@ -81,15 +90,15 @@ export function ChannelSection({
 				<div className="space-y-0.5 sm:space-y-1">
 					{channels.map((channel) => (
 						<ChannelItem
-							key={channel.name}
+							key={channel.id}
 							name={channel.name}
 							type={type}
-							isSelected={selectedChannel === channel.name}
+							isSelected={selectedChannel === channel.id}
 							notifications={channel.notifications}
 							userCount={channel.userCount}
 							onClick={
 								type === "text" && onChannelSelect
-									? () => onChannelSelect(channel.name)
+									? () => onChannelSelect(channel.id)
 									: undefined
 							}
 							onJoinVoice={

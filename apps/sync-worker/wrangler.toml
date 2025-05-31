@@ -1,0 +1,18 @@
+name = "livestore-sync"
+main = "src/index.ts"
+compatibility_date = "2025-01-31"
+account_id = "5068b2ec7bf7d9f84b849fcc3bf733aa"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "livestore-db"
+database_id = "1103ab85-aa07-45f1-8f45-ed64c07790c9"
+
+[durable_objects]
+bindings = [
+  { name = "WEBSOCKET_SERVER", class_name = "WebSocketServer" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["WebSocketServer"] 

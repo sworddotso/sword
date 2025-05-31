@@ -11,11 +11,26 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as TodosImport } from './routes/todos'
+import { Route as TestImport } from './routes/test'
 import { Route as LoginImport } from './routes/login'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as IndexImport } from './routes/index'
+import { Route as InviteInviteCodeImport } from './routes/invite.$inviteCode'
 
 // Create/Update Routes
+
+const TodosRoute = TodosImport.update({
+  id: '/todos',
+  path: '/todos',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const TestRoute = TestImport.update({
+  id: '/test',
+  path: '/test',
+  getParentRoute: () => rootRoute,
+} as any)
 
 const LoginRoute = LoginImport.update({
   id: '/login',
@@ -32,6 +47,12 @@ const DashboardRoute = DashboardImport.update({
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const InviteInviteCodeRoute = InviteInviteCodeImport.update({
+  id: '/invite/$inviteCode',
+  path: '/invite/$inviteCode',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -60,6 +81,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginImport
       parentRoute: typeof rootRoute
     }
+    '/test': {
+      id: '/test'
+      path: '/test'
+      fullPath: '/test'
+      preLoaderRoute: typeof TestImport
+      parentRoute: typeof rootRoute
+    }
+    '/todos': {
+      id: '/todos'
+      path: '/todos'
+      fullPath: '/todos'
+      preLoaderRoute: typeof TodosImport
+      parentRoute: typeof rootRoute
+    }
+    '/invite/$inviteCode': {
+      id: '/invite/$inviteCode'
+      path: '/invite/$inviteCode'
+      fullPath: '/invite/$inviteCode'
+      preLoaderRoute: typeof InviteInviteCodeImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -69,12 +111,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/test': typeof TestRoute
+  '/todos': typeof TodosRoute
+  '/invite/$inviteCode': typeof InviteInviteCodeRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/test': typeof TestRoute
+  '/todos': typeof TodosRoute
+  '/invite/$inviteCode': typeof InviteInviteCodeRoute
 }
 
 export interface FileRoutesById {
@@ -82,14 +130,30 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/test': typeof TestRoute
+  '/todos': typeof TodosRoute
+  '/invite/$inviteCode': typeof InviteInviteCodeRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/test'
+    | '/todos'
+    | '/invite/$inviteCode'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login'
-  id: '__root__' | '/' | '/dashboard' | '/login'
+  to: '/' | '/dashboard' | '/login' | '/test' | '/todos' | '/invite/$inviteCode'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/test'
+    | '/todos'
+    | '/invite/$inviteCode'
   fileRoutesById: FileRoutesById
 }
 
@@ -97,12 +161,18 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  TestRoute: typeof TestRoute
+  TodosRoute: typeof TodosRoute
+  InviteInviteCodeRoute: typeof InviteInviteCodeRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  TestRoute: TestRoute,
+  TodosRoute: TodosRoute,
+  InviteInviteCodeRoute: InviteInviteCodeRoute,
 }
 
 export const routeTree = rootRoute
@@ -117,7 +187,10 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/dashboard",
-        "/login"
+        "/login",
+        "/test",
+        "/todos",
+        "/invite/$inviteCode"
       ]
     },
     "/": {
@@ -128,6 +201,15 @@ export const routeTree = rootRoute
     },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/test": {
+      "filePath": "test.tsx"
+    },
+    "/todos": {
+      "filePath": "todos.tsx"
+    },
+    "/invite/$inviteCode": {
+      "filePath": "invite.$inviteCode.tsx"
     }
   }
 }

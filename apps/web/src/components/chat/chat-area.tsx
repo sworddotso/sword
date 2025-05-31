@@ -1,9 +1,16 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useChatTheme } from "./chat-theme-provider";
 import { MessageInput } from "./message-input";
 import MessageItem from "./message-item";
+import { useStore, tables, actions, generateId } from '@/lib/livestore'
+import { queryDb } from '@livestore/livestore'
+import { authClient } from "@/lib/auth-client";
+
+// =============================================================================
+// TYPES & INTERFACES
+// =============================================================================
 
 interface FileAttachment {
 	id: string;
@@ -24,191 +31,364 @@ interface Message {
 	isEdited?: boolean;
 }
 
-const initialMockMessages: Message[] = [
-	{
-		id: 1,
-		user: "Snzhar",
-		avatar:
-			"https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-		content:
-			"Check out this **markdown** support! We can now use:\n\n- Lists\n- **Bold text**\n- *Italic text*\n- `code blocks`\n\nAnd even math: $E = mc^2$",
-		timestamp: "21:50",
-		reactions: [
-			{ emoji: "🔥", count: 2 },
-			{ emoji: "❤️", count: 1 },
-		],
-		isEdited: false,
-	},
-	{
-		id: 2,
-		user: "dayum",
-		avatar:
-			"https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=40&h=40&fit=crop&crop=face",
-		content:
-			"Here's a code block example:\n\n```javascript\nconst message = 'Hello World!';\nconsole.log(message);\n```\n\nPretty neat! 🚀",
-		timestamp: "21:48",
-		reactions: [{ emoji: "💯", count: 3 }],
-	},
-	{
-		id: 3,
-		user: "MathWiz",
-		avatar:
-			"https://images.unsplash.com/photo-1599566150163-29194dcaad36?w=40&h=40&fit=crop&crop=face",
-		content:
-			"LaTeX math support is amazing! Check this out:\n\n$$\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}$$\n\nAnd inline math: $\\sum_{i=1}^{n} i = \\frac{n(n+1)}{2}$",
-		timestamp: "21:45",
-		reactions: [
-			{ emoji: "🧮", count: 5 },
-			{ emoji: "🤯", count: 2 },
-		],
-	},
-	{
-		id: 4,
-		user: "DesignGuru",
-		avatar:
-			"https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=40&h=40&fit=crop&crop=face",
-		content: "Love the new file upload feature! Here's my latest design:",
-		timestamp: "21:40",
-		attachments: [
-			{
-				id: "1",
-				name: "new_design_concept.png",
-				url: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=300&fit=crop",
-				type: "image",
-				size: 2456789,
-			},
-		],
-		reactions: [
-			{ emoji: "🎨", count: 4 },
-			{ emoji: "👏", count: 6 },
-		],
-	},
-	{
-		id: 5,
-		user: "DevLead",
-		avatar:
-			"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-		content:
-			"Documentation update attached. Also, here's a useful table:\n\n| Feature | Status | Priority |\n|---------|--------|----------|\n| Markdown | ✅ Done | High |\n| LaTeX | ✅ Done | High |\n| Files | ✅ Done | Medium |\n| Emojis | 🚧 In Progress | Low |",
-		timestamp: "21:35",
-		attachments: [
-			{
-				id: "2",
-				name: "api_documentation.pdf",
-				url: "#",
-				type: "document",
-				size: 1234567,
-			},
-		],
-		reactions: [{ emoji: "📚", count: 2 }],
-		isEdited: true,
-	},
-];
-
 interface ChatAreaProps {
 	selectedChannel: string;
 	className?: string;
 }
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
 
 export default function ChatArea({
 	selectedChannel,
 	className,
 }: ChatAreaProps) {
 	const { theme, variant } = useChatTheme();
-	const [messages, setMessages] = useState<Message[]>(initialMockMessages);
+	const { store } = useStore()
+	const { data: session } = authClient.useSession();
 
-	const getCurrentTimestamp = () => {
-		const now = new Date();
-		return now.toLocaleTimeString("en-US", {
-			hour: "2-digit",
-			minute: "2-digit",
-			hour12: false,
-		});
-	};
+	// Add state to track when channel changes
+	const [currentChannelId, setCurrentChannelId] = useState<string>(selectedChannel)
+
+	// Update current channel ID when selected channel changes
+	useEffect(() => {
+		if (selectedChannel !== currentChannelId) {
+			console.log('🔄 Channel changed from', currentChannelId, 'to', selectedChannel)
+			setCurrentChannelId(selectedChannel)
+		}
+	}, [selectedChannel, currentChannelId])
+
+	// =============================================================================
+	// DATABASE QUERIES
+	// =============================================================================
+
+	// Query messages for the selected channel - ensure proper reactivity
+	// Try a simpler approach: query all messages and filter in memory for better reactivity
+	const messagesQuery = queryDb(() => {
+		console.log('🔍 Querying ALL messages (will filter by channel in memory)')
+		return tables.messages
+	})
+	
+	// Query ALL messages for debugging
+	const allMessagesQuery = queryDb(() => tables.messages)
+	const allMessages = store.useQuery(allMessagesQuery)
+	
+	// Query all users
+	const usersQuery = queryDb(() => 
+		tables.users.where({ deletedAt: null })
+	)
+	
+	// Query all reactions
+	const reactionsQuery = queryDb(() => 
+		tables.reactions
+	)
+	
+	// Get reactive data
+	const allMessagesFromQuery = store.useQuery(messagesQuery)
+	
+	// Filter messages in memory for the selected channel
+	const messages = allMessagesFromQuery?.filter((msg: any) => 
+		msg.channelId === selectedChannel && !msg.deletedAt
+	)
+	
+	const users = store.useQuery(usersQuery)
+	const reactions = store.useQuery(reactionsQuery)
+
+	// Log detailed debugging info
+	useEffect(() => {
+		console.log('📊 Chat Area Data Update:', {
+			selectedChannel,
+			currentChannelId,
+			messagesCount: messages?.length || 0,
+			usersCount: users?.length || 0,
+			reactionsCount: reactions?.length || 0,
+			totalMessagesInDb: allMessages?.length || 0,
+			messagesForThisChannel: allMessages?.filter((m: any) => m.channelId === selectedChannel).length || 0,
+			allChannelIds: [...new Set(allMessages?.map((m: any) => m.channelId) || [])],
+			firstFewMessages: messages?.slice(0, 3).map((m: any) => ({
+				id: m.id,
+				channelId: m.channelId,
+				content: m.content.substring(0, 30) + '...',
+				createdAt: m.createdAt
+			})),
+		})
+	}, [selectedChannel, currentChannelId, messages, users, reactions, allMessages])
+	
+	// Create user lookup map for performance
+	const userMap = new Map(users?.map((user: any) => [user.id, user]) || [])
+	
+	// =============================================================================
+	// USER MANAGEMENT
+	// =============================================================================
+
+	// Ensure current user exists in LiveStore and return it
+	const getCurrentUser = () => {
+		if (!session?.user) {
+			console.warn('⚠️ No session user found')
+			return null
+		}
+		
+		// Create a consistent user ID based on session
+		const sessionUserId = `user_${session.user.email?.replace(/[^a-zA-Z0-9]/g, '_')}_${session.user.id || Date.now()}`
+		
+		// Check if user already exists in LiveStore
+		let currentUser = users?.find((user: any) => 
+			user.email === session.user.email || user.id === sessionUserId
+		)
+		
+		// If user doesn't exist, create them
+		if (!currentUser && session.user.email) {
+			const userData = {
+				id: sessionUserId,
+				email: session.user.email,
+				name: session.user.name || session.user.email,
+				username: session.user.name?.replace(/\s+/g, '') || session.user.email.split('@')[0],
+				avatar: session.user.image || undefined,
+				status: 'online'
+			}
+			
+			try {
+				actions.createUser(store, userData)
+				console.log('✅ Created new user in LiveStore:', userData.name)
+				
+				// Return the user data immediately (it will be persisted)
+				return userData
+			} catch (error) {
+				console.warn('User might already exist:', error)
+				// Try to find the user again after creation attempt
+				currentUser = users?.find((user: any) => 
+					user.email === session.user.email || user.id === sessionUserId
+				)
+			}
+		}
+		
+		// Update user info if it has changed
+		if (currentUser && session.user) {
+			const updates: any = {}
+			let hasUpdates = false
+			
+			if (session.user.name && currentUser.name !== session.user.name) {
+				updates.name = session.user.name
+				hasUpdates = true
+			}
+			if (session.user.image && currentUser.avatar !== session.user.image) {
+				updates.avatar = session.user.image
+				hasUpdates = true
+			}
+			
+			if (hasUpdates) {
+				actions.updateUser(store, currentUser.id, updates)
+				console.log('✅ Updated user info:', updates)
+			}
+		}
+		
+		return currentUser || null
+	}
+	
+	// =============================================================================
+	// MESSAGE PROCESSING
+	// =============================================================================
+
+	// Create message ID mapping between string (LiveStore) and number (MessageItem)
+	const messageIdMap = new Map<number, string>()
+	const reverseMessageIdMap = new Map<string, number>()
+	
+	// Process messages data to match component interface
+	const processedMessages: Message[] = [...(messages || [])]
+		.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+		.map((msg: any, index: number) => {
+			const numberId = index + 1
+			messageIdMap.set(numberId, msg.id)
+			reverseMessageIdMap.set(msg.id, numberId)
+			
+			const user = userMap.get(msg.userId)
+			const messageReactions = (reactions || [])
+				.filter((reaction: any) => reaction.messageId === msg.id)
+				.reduce((acc: any, reaction: any) => {
+					const existing = acc.find((r: any) => r.emoji === reaction.emoji)
+					if (existing) {
+						existing.count++
+					} else {
+						acc.push({ emoji: reaction.emoji, count: 1 })
+					}
+					return acc
+				}, [])
+			
+			return {
+				id: numberId,
+				user: user?.username || user?.name || 'Unknown User',
+				avatar: user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
+				content: msg.content,
+				timestamp: new Date(msg.createdAt).toLocaleTimeString("en-US", {
+					hour: "2-digit",
+					minute: "2-digit",
+					hour12: false,
+				}),
+				reactions: messageReactions,
+				attachments: msg.attachments ? JSON.parse(msg.attachments) : undefined,
+				isEdited: !!msg.editedAt,
+			}
+		})
+
+	console.log('📝 Processed Messages Summary:', {
+		rawCount: messages?.length || 0,
+		processedCount: processedMessages.length,
+		channelId: selectedChannel,
+		hasMessages: processedMessages.length > 0,
+		latestMessage: processedMessages[processedMessages.length - 1]?.content?.substring(0, 30) + '...'
+	})
+
+	// =============================================================================
+	// EVENT HANDLERS
+	// =============================================================================
 
 	const handleSendMessage = (message: string, files?: File[]) => {
 		if (!message.trim() && (!files || files.length === 0)) return;
 
-		const newMessage: Message = {
-			id: messages.length + 1,
-			user: "You", // Current user
-			avatar:
-				"https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-			content: message,
-			timestamp: getCurrentTimestamp(),
-			reactions: [],
-			attachments: files
-				? files.map((file, index) => ({
-						id: `${Date.now()}-${index}`,
-						name: file.name,
-						url: URL.createObjectURL(file), // Create temporary URL for preview
-						type: file.type.startsWith("image/")
-							? "image"
-							: file.type.startsWith("video/")
-								? "video"
-								: file.type.startsWith("audio/")
-									? "audio"
-									: "document",
-						size: file.size,
-					}))
-				: undefined,
-			isEdited: false,
-		};
+		const currentUser = getCurrentUser()
+		if (!currentUser) {
+			console.error('❌ No user found to send message. Please seed the database first.')
+			alert('No user found. Please make sure the database is seeded with sample data.')
+			return
+		}
 
-		setMessages((prev) => [...prev, newMessage]);
+		if (!selectedChannel) {
+			console.error('❌ No channel selected')
+			alert('No channel selected. Please select a channel first.')
+			return
+		}
+
+		// Handle file attachments
+		let attachments: FileAttachment[] | undefined
+		if (files && files.length > 0) {
+			attachments = files.map((file, index) => ({
+				id: `${Date.now()}-${index}`,
+				name: file.name,
+				url: URL.createObjectURL(file), // Create temporary URL for preview
+				type: file.type.startsWith("image/")
+					? "image"
+					: file.type.startsWith("video/")
+						? "video"
+						: file.type.startsWith("audio/")
+							? "audio"
+							: "document",
+				size: file.size,
+			}))
+		}
+
+		// Create message using LiveStore action
+		console.log('💬 Sending message:', {
+			channelId: selectedChannel,
+			userId: currentUser.id,
+			content: message.substring(0, 50) + (message.length > 50 ? '...' : ''),
+			hasAttachments: !!attachments
+		})
+
+		try {
+			actions.createMessage(store, {
+				channelId: selectedChannel,
+				userId: currentUser.id,
+				content: message,
+				type: 'text',
+				attachments: attachments ? JSON.stringify(attachments) : undefined,
+			})
+			console.log('✅ Message sent successfully!')
+		} catch (error) {
+			console.error('❌ Failed to send message:', error)
+			alert('Failed to send message. Please try again.')
+		}
 	};
 
 	const handleAddReaction = (messageId: number, emoji: string) => {
-		setMessages((prev) =>
-			prev.map((msg) => {
-				if (msg.id === messageId) {
-					const existingReaction = msg.reactions.find((r) => r.emoji === emoji);
-					if (existingReaction) {
-						// Increment count
-						return {
-							...msg,
-							reactions: msg.reactions.map((r) =>
-								r.emoji === emoji ? { ...r, count: r.count + 1 } : r,
-							),
-						};
-					}
-					// Add new reaction
-					return {
-						...msg,
-						reactions: [...msg.reactions, { emoji, count: 1 }],
-					};
-				}
-				return msg;
-			}),
-		);
+		// Convert number ID back to string ID
+		const realMessageId = messageIdMap.get(messageId)
+		if (!realMessageId) {
+			console.error('❌ Message ID not found:', messageId)
+			return
+		}
+		
+		const currentUser = getCurrentUser()
+		if (!currentUser) {
+			console.error('❌ No user found to add reaction')
+			return
+		}
+		
+		// Check if user already reacted with this emoji
+		const existingReaction = (reactions || []).find((reaction: any) => 
+			reaction.messageId === realMessageId && 
+			reaction.userId === currentUser.id && 
+			reaction.emoji === emoji
+		)
+		
+		try {
+			if (existingReaction) {
+				// Remove reaction if it already exists
+				actions.removeReaction(store, existingReaction.id)
+				console.log('➖ Removed reaction:', emoji)
+			} else {
+				// Add new reaction
+				actions.addReaction(store, realMessageId, currentUser.id, emoji)
+				console.log('➕ Added reaction:', emoji)
+			}
+		} catch (error) {
+			console.error('❌ Failed to handle reaction:', error)
+		}
 	};
 
 	const handleReactionClick = (messageId: number, emoji: string) => {
-		setMessages((prev) =>
-			prev.map((msg) => {
-				if (msg.id === messageId) {
-					const existingReaction = msg.reactions.find((r) => r.emoji === emoji);
-					if (existingReaction) {
-						if (existingReaction.count > 1) {
-							// Decrement count
-							return {
-								...msg,
-								reactions: msg.reactions.map((r) =>
-									r.emoji === emoji ? { ...r, count: r.count - 1 } : r,
-								),
-							};
-						}
-						// Remove reaction
-						return {
-							...msg,
-							reactions: msg.reactions.filter((r) => r.emoji !== emoji),
-						};
-					}
-				}
-				return msg;
-			}),
-		);
+		handleAddReaction(messageId, emoji)
 	};
+
+	// =============================================================================
+	// RENDER CONDITIONS
+	// =============================================================================
+
+	// Show loading or no data state
+	if (!users?.length) {
+		return (
+			<div
+				className={cn(
+					"flex h-full flex-col items-center justify-center",
+					theme.chatArea.background,
+					className,
+				)}
+			>
+				<div className="text-center">
+					<p className="text-zinc-400 text-lg">No data found</p>
+					<p className="text-zinc-500 text-sm mt-2">
+						Please seed the database first to see messages and users.
+					</p>
+					<p className="text-zinc-600 text-xs mt-1">
+						Go to /test and use the seed button
+					</p>
+				</div>
+			</div>
+		)
+	}
+
+	if (!selectedChannel) {
+		return (
+			<div
+				className={cn(
+					"flex h-full flex-col items-center justify-center",
+					theme.chatArea.background,
+					className,
+				)}
+			>
+				<div className="text-center">
+					<p className="text-zinc-400 text-lg">No channel selected</p>
+					<p className="text-zinc-500 text-sm mt-2">
+						Select a channel from the sidebar to start chatting.
+					</p>
+				</div>
+			</div>
+		)
+	}
+
+	// =============================================================================
+	// MAIN RENDER
+	// =============================================================================
 
 	return (
 		<div
@@ -219,7 +399,7 @@ export default function ChatArea({
 			)}
 			data-theme={variant}
 		>
-			{/* Scrollable Messages Area with Shadcn ScrollArea */}
+			{/* Scrollable Messages Area */}
 			<ScrollArea
 				className={cn(
 					"min-h-0 flex-1",
@@ -236,14 +416,25 @@ export default function ChatArea({
 						theme.chatArea.messageArea.padding,
 					)}
 				>
-					{messages.map((msg) => (
-						<MessageItem
-							key={msg.id}
-							message={msg}
-							onAddReaction={handleAddReaction}
-							onReactionClick={handleReactionClick}
-						/>
-					))}
+					{processedMessages.length === 0 ? (
+						<div className="flex items-center justify-center h-full min-h-[200px]">
+							<div className="text-center">
+								<p className="text-zinc-400 text-sm">No messages in this channel yet</p>
+								<p className="text-zinc-500 text-xs mt-1">
+									Be the first to send a message!
+								</p>
+							</div>
+						</div>
+					) : (
+						processedMessages.map((msg) => (
+							<MessageItem
+								key={`${selectedChannel}-${msg.id}`}
+								message={msg}
+								onAddReaction={handleAddReaction}
+								onReactionClick={handleReactionClick}
+							/>
+						))
+					)}
 				</div>
 			</ScrollArea>
 

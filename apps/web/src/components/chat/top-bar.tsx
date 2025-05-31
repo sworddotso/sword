@@ -5,6 +5,8 @@ import {
 	QuestionMarkCircleIcon,
 } from "@heroicons/react/16/solid";
 import { useChatTheme } from "./chat-theme-provider";
+import { useStore, tables } from '@/lib/livestore'
+import { queryDb } from '@livestore/livestore'
 
 interface TopBarProps {
 	selectedChannel: string;
@@ -13,6 +15,38 @@ interface TopBarProps {
 
 export default function TopBar({ selectedChannel, className }: TopBarProps) {
 	const { theme } = useChatTheme();
+	const { store } = useStore()
+
+	// Query to get the current channel details - use a more robust approach
+	const channelQuery = queryDb(() => {
+		console.log('🔍 TopBar: Querying all channels for lookup')
+		return tables.channels.where({ deletedAt: null })
+	})
+	
+	const channels = store.useQuery(channelQuery)
+	const currentChannel = channels?.find((channel: any) => channel.id === selectedChannel)
+	
+	console.log('🎯 TopBar Channel Data:', {
+		selectedChannel,
+		foundChannel: !!currentChannel,
+		channelName: currentChannel?.name,
+		channelType: currentChannel?.type,
+		totalChannelsFound: channels?.length || 0,
+		queryingSpecificChannel: selectedChannel,
+		allChannelIds: channels?.map((c: any) => c.id)
+	})
+	
+	// Display the channel name, fallback to ID if not found
+	const channelName = currentChannel?.name || selectedChannel || 'Unknown Channel'
+	const channelType = currentChannel?.type || 'text'
+
+	// Show debug info if channel is not found
+	if (selectedChannel && !currentChannel) {
+		console.error('❌ TopBar: Channel not found in database!', {
+			searchingFor: selectedChannel,
+			availableChannels: channels?.map((c: any) => ({ id: c.id, name: c.name }))
+		})
+	}
 
 	return (
 		<div
@@ -25,12 +59,19 @@ export default function TopBar({ selectedChannel, className }: TopBarProps) {
 		>
 			{/* Channel Info */}
 			<div className="flex min-w-0 items-center space-x-2 sm:space-x-3">
-				<span className="text-xl text-zinc-500">#</span>
+				<span className="text-xl text-zinc-500">
+					{channelType === 'voice' ? '🔊' : '#'}
+				</span>
 				<h2
 					className={cn("font-semibold text-xl", theme.chatArea.topBar.color)}
 				>
-					{selectedChannel}
+					{channelName}
 				</h2>
+				{currentChannel?.description && (
+					<span className="hidden text-sm text-zinc-400 sm:block">
+						{currentChannel.description}
+					</span>
+				)}
 			</div>
 
 			{/* Top Bar Actions */}
