@@ -45,8 +45,18 @@ bun install
 
 Sword uses PostgreSQL with Drizzle ORM for data persistence.
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
+1. Start PostgreSQL using Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+2. Copy the example environment file:
+
+```bash
+cp apps/server/.env.example apps/server/.env
+```
+
 3. Apply the schema to your database:
 
 ```bash
