@@ -1,8 +1,9 @@
 import { cn } from "@/lib/utils";
-import { Bars3Icon, UserPlusIcon } from "@heroicons/react/16/solid";
+import { Bars3Icon, UserPlusIcon, UsersIcon } from "@heroicons/react/16/solid";
 import { useState } from "react";
 import { useChatTheme } from "./chat-theme-provider";
 import { InvitePopup } from "./invite-popup";
+import { useNavigate } from "@tanstack/react-router";
 
 interface ServerHeaderProps {
 	serverName: string;
@@ -19,6 +20,7 @@ export default function ServerHeader({
 }: ServerHeaderProps) {
 	const { theme } = useChatTheme();
 	const [showInvitePopup, setShowInvitePopup] = useState(false);
+	const navigate = useNavigate();
 
 	// Mock server data - in real app this would come from API
 	const serverData = {
@@ -50,6 +52,13 @@ export default function ServerHeader({
 	const currentServer =
 		serverData[serverId as keyof typeof serverData] || serverData.analog;
 
+	const handleMembersClick = () => {
+		navigate({
+			to: '/s/$serverId/members',
+			params: { serverId }
+		});
+	};
+
 	if (isCollapsed) {
 		// Collapsed header - only server name
 		return (
@@ -73,6 +82,20 @@ export default function ServerHeader({
 						{serverName}
 					</h1>
 						<div className="flex items-center gap-1">
+							<button
+								type="button"
+								onClick={handleMembersClick}
+								className={cn(
+									"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+									theme.userBar.buttons.background,
+									theme.userBar.buttons.hoverBackground,
+									theme.userBar.buttons.color,
+									theme.userBar.buttons.hoverColor,
+								)}
+								title="View Members"
+							>
+								<UsersIcon className="h-4 w-4" />
+							</button>
 							<button
 								type="button"
 								onClick={() => setShowInvitePopup(true)}
@@ -148,6 +171,20 @@ export default function ServerHeader({
 
 				{/* Server Actions */}
 					<div className="absolute top-3 right-4 flex items-center gap-1 transition-all duration-500 ease-out">
+						<button
+							type="button"
+							onClick={handleMembersClick}
+							className={cn(
+								"flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+								theme.userBar.buttons.background,
+								theme.userBar.buttons.hoverBackground,
+								theme.userBar.buttons.color,
+								theme.userBar.buttons.hoverColor,
+							)}
+							title="View Members"
+						>
+							<UsersIcon className="h-4 w-4" />
+						</button>
 						<button
 							type="button"
 							onClick={() => setShowInvitePopup(true)}

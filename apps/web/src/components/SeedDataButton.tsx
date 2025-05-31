@@ -93,10 +93,10 @@ Share invite codes for others to join from any device/browser.`)
           
           <div className="mt-2 pt-2 border-t border-emerald-200">
             <a 
-              href="/dashboard" 
+              href="/s" 
               className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
             >
-              → Go to Dashboard to start chatting
+              → Go to Chat to start messaging
             </a>
           </div>
         </div>

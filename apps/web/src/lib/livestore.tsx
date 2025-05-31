@@ -10,14 +10,17 @@ import LiveStoreSharedWorker from '@livestore/adapter-web/shared-worker?sharedwo
 // LIVESTORE CONFIGURATION
 // =============================================================================
 
-// Check for reset query parameter to reset persistence
-const resetPersistence = new URLSearchParams(window.location.search).get('reset') !== null
+// Check for reset query parameter to reset persistence (useful for development)
+const resetPersistence = import.meta.env.DEV && new URLSearchParams(window.location.search).get('reset') !== null
 
 if (resetPersistence) {
-  console.log('🔄 LiveStore persistence reset requested')
+  console.log('🔄 LiveStore persistence reset requested via ?reset parameter')
+  console.log('💾 This will clear all local data and restart LiveStore')
   const searchParams = new URLSearchParams(window.location.search)
   searchParams.delete('reset')
   window.history.replaceState(null, '', `${window.location.pathname}?${searchParams.toString()}`)
+} else if (import.meta.env.DEV) {
+  console.log('🛠️ Development mode: Add ?reset to URL to reset LiveStore persistence')
 }
 
 // Create the adapter with Cloudflare sync backend
@@ -37,7 +40,19 @@ export function AppLiveStoreProvider({ children }: { children: ReactNode }) {
     <LiveStoreProvider
       schema={schema}
       adapter={adapter}
-      renderLoading={(stage) => <div>Loading LiveStore ({stage.stage})...</div>}
+      renderLoading={(stage) => (
+        <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-100">
+          <div className="flex items-center space-x-3">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-300" />
+            <span>Loading LiveStore ({stage.stage})...</span>
+            {import.meta.env.DEV && stage.stage === 'loading' && (
+              <div className="ml-4 text-xs text-zinc-500">
+                If stuck, try adding ?reset to the URL
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       batchUpdates={batchUpdates}
       storeId="sword-app-global" // Single global store for all users
       syncPayload={{ authToken: 'dev-token-change-me' }} // Auth token for sync backend

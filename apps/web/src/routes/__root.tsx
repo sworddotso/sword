@@ -51,8 +51,8 @@ function RootComponent() {
 	});
 
 	// Pages that should not show the header
-	const hideHeaderPages = ["/", "/login", "/dashboard"];
-	const shouldShowHeader = !hideHeaderPages.includes(pathname);
+	const hideHeaderPages = ["/", "/login"];
+	const shouldShowHeader = !hideHeaderPages.includes(pathname) && !pathname.startsWith("/s");
 
 	// Flag to hide devtools
 	const hideDevtools = import.meta.env.PROD || true;

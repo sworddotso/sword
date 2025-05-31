@@ -270,13 +270,13 @@ function TestPage() {
 
 				{/* Navigation */}
 				<div className="bg-zinc-900 p-6 rounded-lg">
-					<h2 className="text-xl font-semibold mb-4">Navigation</h2>
-					<div className="flex gap-4">
+					<h2 className="text-xl font-semibold mb-4">Navigation & Development</h2>
+					<div className="grid grid-cols-2 gap-4">
 						<Button
-							onClick={() => window.location.href = '/dashboard'}
-							className="bg-green-600 hover:bg-green-700"
+							onClick={() => window.location.href = '/s'}
+							className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
 						>
-							🏠 Go to Dashboard
+							🏠 Go to Chat
 						</Button>
 						
 						<Button
@@ -285,6 +285,20 @@ function TestPage() {
 						>
 							🏡 Go to Home
 						</Button>
+
+						<Button
+							onClick={() => {
+								window.location.href = window.location.pathname + '?reset'
+							}}
+							variant="destructive"
+							className="col-span-2"
+						>
+							🔄 Reset LiveStore (Fix Worker Issues)
+						</Button>
+					</div>
+					
+					<div className="mt-4 p-3 bg-yellow-900/20 border border-yellow-700 rounded text-sm text-yellow-200">
+						<p><strong>Development tip:</strong> If you see LiveStore worker errors, click "Reset LiveStore" to clear the shared worker state and restart fresh.</p>
 					</div>
 				</div>
 			</div>

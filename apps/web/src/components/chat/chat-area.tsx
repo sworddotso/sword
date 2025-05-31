@@ -221,9 +221,9 @@ export default function ChatArea({
 				avatar: user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
 				content: msg.content,
 				timestamp: new Date(msg.createdAt).toLocaleTimeString("en-US", {
-					hour: "2-digit",
-					minute: "2-digit",
-					hour12: false,
+			hour: "2-digit",
+			minute: "2-digit",
+			hour12: false,
 				}),
 				reactions: messageReactions,
 				attachments: msg.attachments ? JSON.parse(msg.attachments) : undefined,
@@ -263,18 +263,18 @@ export default function ChatArea({
 		let attachments: FileAttachment[] | undefined
 		if (files && files.length > 0) {
 			attachments = files.map((file, index) => ({
-				id: `${Date.now()}-${index}`,
-				name: file.name,
-				url: URL.createObjectURL(file), // Create temporary URL for preview
-				type: file.type.startsWith("image/")
-					? "image"
-					: file.type.startsWith("video/")
-						? "video"
-						: file.type.startsWith("audio/")
-							? "audio"
-							: "document",
-				size: file.size,
-			}))
+						id: `${Date.now()}-${index}`,
+						name: file.name,
+						url: URL.createObjectURL(file), // Create temporary URL for preview
+						type: file.type.startsWith("image/")
+							? "image"
+							: file.type.startsWith("video/")
+								? "video"
+								: file.type.startsWith("audio/")
+									? "audio"
+									: "document",
+						size: file.size,
+					}))
 		}
 
 		// Create message using LiveStore action
@@ -322,7 +322,7 @@ export default function ChatArea({
 		)
 		
 		try {
-			if (existingReaction) {
+					if (existingReaction) {
 				// Remove reaction if it already exists
 				actions.removeReaction(store, existingReaction.id)
 				console.log('➖ Removed reaction:', emoji)
@@ -427,12 +427,12 @@ export default function ChatArea({
 						</div>
 					) : (
 						processedMessages.map((msg) => (
-							<MessageItem
+						<MessageItem
 								key={`${selectedChannel}-${msg.id}`}
-								message={msg}
-								onAddReaction={handleAddReaction}
-								onReactionClick={handleReactionClick}
-							/>
+							message={msg}
+							onAddReaction={handleAddReaction}
+							onReactionClick={handleReactionClick}
+						/>
 						))
 					)}
 				</div>

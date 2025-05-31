@@ -16,7 +16,10 @@ import { Route as TestImport } from './routes/test'
 import { Route as LoginImport } from './routes/login'
 import { Route as DashboardImport } from './routes/dashboard'
 import { Route as IndexImport } from './routes/index'
+import { Route as SIndexImport } from './routes/s/index'
 import { Route as InviteInviteCodeImport } from './routes/invite.$inviteCode'
+import { Route as SServerIdMembersImport } from './routes/s/$serverId.members'
+import { Route as SServerIdChannelIdImport } from './routes/s/$serverId.$channelId'
 
 // Create/Update Routes
 
@@ -50,9 +53,27 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
+const SIndexRoute = SIndexImport.update({
+  id: '/s/',
+  path: '/s/',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const InviteInviteCodeRoute = InviteInviteCodeImport.update({
   id: '/invite/$inviteCode',
   path: '/invite/$inviteCode',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const SServerIdMembersRoute = SServerIdMembersImport.update({
+  id: '/s/$serverId/members',
+  path: '/s/$serverId/members',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const SServerIdChannelIdRoute = SServerIdChannelIdImport.update({
+  id: '/s/$serverId/$channelId',
+  path: '/s/$serverId/$channelId',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -102,6 +123,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteInviteCodeImport
       parentRoute: typeof rootRoute
     }
+    '/s/': {
+      id: '/s/'
+      path: '/s'
+      fullPath: '/s'
+      preLoaderRoute: typeof SIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/s/$serverId/$channelId': {
+      id: '/s/$serverId/$channelId'
+      path: '/s/$serverId/$channelId'
+      fullPath: '/s/$serverId/$channelId'
+      preLoaderRoute: typeof SServerIdChannelIdImport
+      parentRoute: typeof rootRoute
+    }
+    '/s/$serverId/members': {
+      id: '/s/$serverId/members'
+      path: '/s/$serverId/members'
+      fullPath: '/s/$serverId/members'
+      preLoaderRoute: typeof SServerIdMembersImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -114,6 +156,9 @@ export interface FileRoutesByFullPath {
   '/test': typeof TestRoute
   '/todos': typeof TodosRoute
   '/invite/$inviteCode': typeof InviteInviteCodeRoute
+  '/s': typeof SIndexRoute
+  '/s/$serverId/$channelId': typeof SServerIdChannelIdRoute
+  '/s/$serverId/members': typeof SServerIdMembersRoute
 }
 
 export interface FileRoutesByTo {
@@ -123,6 +168,9 @@ export interface FileRoutesByTo {
   '/test': typeof TestRoute
   '/todos': typeof TodosRoute
   '/invite/$inviteCode': typeof InviteInviteCodeRoute
+  '/s': typeof SIndexRoute
+  '/s/$serverId/$channelId': typeof SServerIdChannelIdRoute
+  '/s/$serverId/members': typeof SServerIdMembersRoute
 }
 
 export interface FileRoutesById {
@@ -133,6 +181,9 @@ export interface FileRoutesById {
   '/test': typeof TestRoute
   '/todos': typeof TodosRoute
   '/invite/$inviteCode': typeof InviteInviteCodeRoute
+  '/s/': typeof SIndexRoute
+  '/s/$serverId/$channelId': typeof SServerIdChannelIdRoute
+  '/s/$serverId/members': typeof SServerIdMembersRoute
 }
 
 export interface FileRouteTypes {
@@ -144,8 +195,20 @@ export interface FileRouteTypes {
     | '/test'
     | '/todos'
     | '/invite/$inviteCode'
+    | '/s'
+    | '/s/$serverId/$channelId'
+    | '/s/$serverId/members'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/login' | '/test' | '/todos' | '/invite/$inviteCode'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/test'
+    | '/todos'
+    | '/invite/$inviteCode'
+    | '/s'
+    | '/s/$serverId/$channelId'
+    | '/s/$serverId/members'
   id:
     | '__root__'
     | '/'
@@ -154,6 +217,9 @@ export interface FileRouteTypes {
     | '/test'
     | '/todos'
     | '/invite/$inviteCode'
+    | '/s/'
+    | '/s/$serverId/$channelId'
+    | '/s/$serverId/members'
   fileRoutesById: FileRoutesById
 }
 
@@ -164,6 +230,9 @@ export interface RootRouteChildren {
   TestRoute: typeof TestRoute
   TodosRoute: typeof TodosRoute
   InviteInviteCodeRoute: typeof InviteInviteCodeRoute
+  SIndexRoute: typeof SIndexRoute
+  SServerIdChannelIdRoute: typeof SServerIdChannelIdRoute
+  SServerIdMembersRoute: typeof SServerIdMembersRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -173,6 +242,9 @@ const rootRouteChildren: RootRouteChildren = {
   TestRoute: TestRoute,
   TodosRoute: TodosRoute,
   InviteInviteCodeRoute: InviteInviteCodeRoute,
+  SIndexRoute: SIndexRoute,
+  SServerIdChannelIdRoute: SServerIdChannelIdRoute,
+  SServerIdMembersRoute: SServerIdMembersRoute,
 }
 
 export const routeTree = rootRoute
@@ -190,7 +262,10 @@ export const routeTree = rootRoute
         "/login",
         "/test",
         "/todos",
-        "/invite/$inviteCode"
+        "/invite/$inviteCode",
+        "/s/",
+        "/s/$serverId/$channelId",
+        "/s/$serverId/members"
       ]
     },
     "/": {
@@ -210,6 +285,15 @@ export const routeTree = rootRoute
     },
     "/invite/$inviteCode": {
       "filePath": "invite.$inviteCode.tsx"
+    },
+    "/s/": {
+      "filePath": "s/index.tsx"
+    },
+    "/s/$serverId/$channelId": {
+      "filePath": "s/$serverId.$channelId.tsx"
+    },
+    "/s/$serverId/members": {
+      "filePath": "s/$serverId.members.tsx"
     }
   }
 }

@@ -195,7 +195,7 @@ function InviteComponent() {
       console.log('✅ Successfully joined server as member');
 
       // Navigate to the server
-      navigate({ to: '/dashboard' });
+      navigate({ to: '/s' });
     } catch (error) {
       console.error('Error joining server:', error);
       setError('Failed to join server. Please try again.');
@@ -248,10 +248,10 @@ function InviteComponent() {
           <h1 className="text-2xl font-bold text-red-400 mb-4">Invalid Invite</h1>
           <p className="text-zinc-300 mb-6">{error}</p>
           <button
-            onClick={() => navigate({ to: '/dashboard' })}
+            onClick={() => navigate({ to: '/s' })}
             className="w-full bg-zinc-700 hover:bg-zinc-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
           >
-            Go to Dashboard
+            Go to Chat
           </button>
         </div>
       </div>
@@ -268,7 +268,7 @@ function InviteComponent() {
             <h2 className="text-xl font-semibold text-zinc-100 mt-2">{server?.name}</h2>
           </div>
           <button
-            onClick={() => navigate({ to: '/dashboard' })}
+            onClick={() => navigate({ to: '/s' })}
             className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
           >
             Go to Server
@@ -323,7 +323,7 @@ function InviteComponent() {
         </button>
 
         <button
-          onClick={() => navigate({ to: '/dashboard' })}
+          onClick={() => navigate({ to: '/s' })}
           className="w-full mt-3 bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium py-2 px-4 rounded-lg transition-colors"
         >
           Cancel

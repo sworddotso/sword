@@ -41,7 +41,7 @@ export default function SignUpForm({
 				{
 					onSuccess: () => {
 						navigate({
-							to: "/dashboard",
+							to: "/s",
 						});
 						toast.success("Sign up successful");
 					},
@@ -64,7 +64,7 @@ export default function SignUpForm({
 		await authClient.signIn.social(
 			{
 				provider: "google",
-				callbackURL: `${window.location.origin}/dashboard`,
+				callbackURL: `${window.location.origin}/s`,
 			},
 			{
 				onError: (error) => {

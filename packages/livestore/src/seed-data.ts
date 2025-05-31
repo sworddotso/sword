@@ -1,6 +1,7 @@
 import { events } from './schema'
 
-// Generate unique IDs with timestamp to avoid conflicts
+// Generate clean, URL-friendly IDs 
+const generateShortId = () => Math.random().toString(36).substring(2, 9) // 7 characters
 const generateId = () => `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`
 
 // Timestamps
@@ -9,7 +10,7 @@ const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
 const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000)
 
-// Use timestamp-based IDs to avoid conflicts
+// Use clean slugs for servers and simple IDs for channels (for beautiful URLs)
 const timestamp = Date.now()
 const userIds = {
   admin: `user_admin_${timestamp}`,
@@ -20,9 +21,9 @@ const userIds = {
   community: `user_community_${timestamp}`,
 }
 
-// Server and related IDs
+// Server IDs - Clean slugs for beautiful URLs
 const serverIds = {
-  swordApp: `server_sword_app_${timestamp}`,
+  swordApp: 'sworddotso', // Clean slug for the main server
 }
 
 const categoryIds = {
@@ -32,27 +33,28 @@ const categoryIds = {
   support: `cat_support_${timestamp}`,
 }
 
+// Channel IDs - Simple numeric/short IDs for clean URLs
 const channelIds = {
-  // General channels
-  welcome: `chan_welcome_${timestamp}`,
-  announcements: `chan_announcements_${timestamp}`,
-  general: `chan_general_${timestamp}`,
+  // General channels - Clean short IDs
+  welcome: `${timestamp}1`,      // timestamp + channel number
+  announcements: `${timestamp}2`,
+  general: `${timestamp}3`,
   
   // Development channels
-  development: `chan_development_${timestamp}`,
-  feature_requests: `chan_features_${timestamp}`,
-  bug_reports: `chan_bugs_${timestamp}`,
+  development: `${timestamp}4`,
+  feature_requests: `${timestamp}5`,
+  bug_reports: `${timestamp}6`,
   
   // Community channels
-  introductions: `chan_introductions_${timestamp}`,
-  feedback: `chan_feedback_${timestamp}`,
+  introductions: `${timestamp}7`,
+  feedback: `${timestamp}8`,
   
   // Support channels
-  help: `chan_help_${timestamp}`,
+  help: `${timestamp}9`,
   
   // Voice channels
-  generalVoice: `chan_voice_general_${timestamp}`,
-  devMeeting: `chan_voice_dev_${timestamp}`,
+  generalVoice: `${timestamp}10`,
+  devMeeting: `${timestamp}11`,
 }
 
 const roleIds = {
