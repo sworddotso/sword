@@ -55,7 +55,7 @@ export function AppLiveStoreProvider({ children }: { children: ReactNode }) {
       )}
       batchUpdates={batchUpdates}
       storeId="sword-app-global" // Single global store for all users
-      syncPayload={{ authToken: 'dev-token-change-me' }} // Auth token for sync backend
+      syncPayload={{ authToken: 'insecure-token-change-me' }} // Auth token for sync backend - matches sync worker
     >
       {children}
     </LiveStoreProvider>

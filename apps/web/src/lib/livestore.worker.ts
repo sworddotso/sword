@@ -4,9 +4,9 @@ import { schema } from '@goated/livestore'
 
 // Use your deployed Cloudflare Worker URL
 // For development: 'ws://localhost:8787' 
-// For production: 'wss://livestore-sync.onydabs.workers.dev'
+// For production: 'wss://livestore-sync-worker.onydabs.workers.dev'
 const syncUrl = import.meta.env.PROD 
-  ? 'wss://livestore-sync.onydabs.workers.dev' 
+  ? 'wss://livestore-sync-worker.onydabs.workers.dev' 
   : 'ws://localhost:8787'
 
 makeWorker({

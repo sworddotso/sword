@@ -41,13 +41,13 @@
     },
     "apps/sync-worker": {
       "name": "sync-worker",
-      "version": "0.0.0",
+      "version": "0.1.0",
       "dependencies": {
         "@livestore/sync-cf": "^0.3.0",
       },
       "devDependencies": {
-        "@cloudflare/workers-types": "^4.20250128.0",
-        "typescript": "^5.8.2",
+        "@cloudflare/workers-types": "^4.20241218.0",
+        "typescript": "^5.7.2",
         "wrangler": "^4.18.0",
       },
     },
